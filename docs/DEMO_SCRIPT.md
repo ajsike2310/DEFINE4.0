@@ -1,0 +1,20 @@
+# Demo Script — Cadence × DEFINE 4.0 sample (SIMULATED calls; say so out loud)
+
+Pre-req: backend and frontend running (`scripts\dev.ps1`). If you upgraded from the earlier build, stop the servers and delete `data\` first (no migrations).
+
+0. **Sample events.** Three labelled sample events exist: *DEFINE 4.0 – MBCET* (attendance, only venue approved), *Campus Code Sprint (fictional)* (schedule announcement, venue + schedule approved → both questions get answers), *Hack Night Workshop (fictional)* (deadline reminder, nothing approved → every question goes to a person). Load them from the empty Dashboard or Settings: **"Load sample events and run simulation"** (pre-populated) or **"Load sample events (not started)"** (drafts: open a campaign and press **Start** to watch it happen). Switch events with the selector at the top of the sidebar. Remove everything with *Remove all sample data*.
+1. **Dashboard.** Event selector shows no events -> **Load sample events**. Dashboard shows `[SAMPLE] DEFINE 4.0 - MBCET, Thiruvananthapuram` with the "fictional participants, simulated calls" label. State plainly: not an organiser partnership, no real participant data.
+2. **Events page.** Show approved info: only *venue* is set; schedule/reporting time/deadline are intentionally blank.
+3. **Create a campaign.** Campaigns -> New campaign: "Attendance round 1", purpose *Attendance confirmation*, English + Malayalam, review message, Participants: reuse the sample campaign's participants (or upload a CSV of `+1555010010x` numbers with consent ticked), Review -> **Create and launch now** (button is disabled without participants). Optional: try *Submission deadline reminder* to show the placeholder guard.
+   - If starting from the seeded campaign instead: Campaigns -> open `[SAMPLE] Attendance confirmation #1` -> **Start campaign**.
+4. **Responses (10 simulated calls):** confirm ("Yes, I'll be there."), decline, Malayalam confirm, callback ("I'm busy. Call me after 5 PM."), unclear ("Maybe. I'll see."), opt-out, keypad 1 after a retry, voicemail, busy, venue question.
+5. **Intelligence.** On the campaign page, show per-attempt: call status (Completed) vs intent (e.g. unclear) vs next action. Point out a *completed* call is not a confirmation.
+6. **Retries.** Click **Run retries now** twice: participant 6 succeeds on attempt 2; 7 (voicemail) and 8 (busy) exhaust 3 attempts -> "Not reached". Nobody who answered is re-called.
+7. **Follow-up queue.** Open it: callback (time unconfirmed, note "after 5 PM, date not confirmed"), unclear -> human review, venue question -> approved answer "MBCET, Thiruvananthapuram" to relay. A *schedule* question would go to a person because no schedule is approved. Mark one complete.
+7b. **Signature moment — Clarify-once + Headcount range.** On the Dashboard read the *Headcount range* (about 3–10 of 11, 36% certain) and which groups keep it wide. In the queue, two people are "unclear". Click **Ask one clarifying question** on Sample Participant 4: a 1-question keypad call is placed; they press 1 → confirmed, the review task closes by itself, and the range tightens (4–10, 45%). Do the same for Participant 10: they still say "not sure" → stays *unclear*, the note says "clarification attempted; still unclear — needs a person", and the button is gone (one chance only). Say it out loud: Cadence never turns "maybe" into "yes".
+8. **Differentiator.** Participants -> filter *Unresolved* -> History on "Sample Participant 4": never counted as confirmed. Filter *Opted out*: participant 5 is suppressed; trying Start again dispatches 0 new calls.
+9. **Analytics.** Show metric definitions, Simulated/Real filter (real = 0), counts match the campaign page.
+10. CLI alternative: `.venv\Scripts\python.exe member4\scripts\demo_e2e.py`. Reset: Settings -> Remove sample data.
+
+**Real calls:** once Exotel keys exist, follow the runbook in `docs/EXOTEL_INTEGRATION.md`, then repeat steps 3–7 with a *new* campaign and yourself as the only participant (the allowlist protects everyone else). Until then say plainly that calls are simulated.
+**Never** edit the database to produce results.

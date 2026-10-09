@@ -1,0 +1,32 @@
+# Known Issues & Limitations
+
+- **Real calling unverified**; Exotel DTMF/speech return path not implemented (see EXOTEL_INTEGRATION.md).
+- **Language support is shallow:** English and Malayalam via a small phrase list (≈22 synthetic test cases, all written by the team). No accuracy claim is made. Romanised Malayalam is only partly covered. No speech-to-text.
+- **Schema changed for events; no migrations.** An old `data/app.db` makes the backend refuse to start with a clear message; delete `data/` (sample data only) or set `DATABASE_URL` to a new file.
+- **Campaigns are "simulated" for life** if created while `CALL_PROVIDER=demo` (or in the sample event). To run real calls, create the campaign after switching the provider.
+- **Clarify-once** is operator-triggered (no auto-trigger), keypad-only, once per person; on Exotel it needs a second flow (`EXOTEL_CLARIFY_FLOW_URL`) which has not been built or run. A failed clarification call is not retried.
+- **Exotel payload details** (exact StatusCallback body, Passthru `CallSid` equivalence, ordering of Passthru vs terminal callback) follow Exotel's docs but are unconfirmed on a live account; handlers fall back to `CustomField`.
+- **Headcount range** counts one person once per event by phone number; people without an attendance campaign are not in it.
+- **Info answers are not spoken on the call:** an approved answer is attached to a follow-up for the organiser to relay; no TTS/SMS is sent.
+- **Callback "after 5 PM"** is stored as a note (date unknown); nothing is auto-scheduled or auto-dialled.
+- **Participants counts** are per campaign row; a person in two campaigns of an event counts twice in event-level totals.
+- **No attendance check-in data**: "confirmed" is stated intent only.
+- **No scheduling/auto-launch:** `scheduled_at` is stored but nothing launches campaigns at that time; retries and follow-up callbacks are not auto-executed (operator triggers `retry-due`; follow-ups are tracked, not dialled).
+- **Follow-up callbacks are records only** — completing one does not place a call.
+- **"Clarification question" on the call is not implemented**; unclear answers create a human-review follow-up instead.
+- **No auth**; full numbers exposed by API; no encryption at rest.
+- **No Alembic migrations**: schema changes require deleting `data/app.db`.
+- **Notifications:** live alerts work by polling (15 s) only while a Cadence tab is open and visible; there is no server push, no browser/OS notification, no email/SMS, and alerts are per browser (history is not shared between people or devices). Only new *follow-ups* are announced live; other events (e.g. an opt-out with no follow-up) show up in the data but are not pushed.
+- Frontend is route-code-split (main bundle ~190 kB); the chart library (~380 kB) loads with the Dashboard/Analytics.
+- Visual QA so far: headless Chrome screenshots of the main pages at desktop width and a 390 px mobile-emulation overflow audit (no horizontal overflow on any page). Not yet checked: other browsers, tablet widths, dark mode (not provided), screen-reader walkthrough.
+- Frontend (old note): Frontend tests: formatting helpers + jsdom render tests for Dashboard, Follow-up queue and the wizard (mocked API). **The UI has never been inspected visually or clicked in a real browser by me**; layout/responsiveness/accessibility are unverified.
+- Sync SQLAlchemy sessions; no locking beyond DB unique constraints (adequate for one process).
+- Wizard has no scheduling step or manual participant entry (use the campaign page).
+- Starlette warns that httpx-based TestClient is deprecated (cosmetic).
+- **Leads:** the public sign-up endpoint has no auth, rate limit or spam protection; consent on CSV imports is the organiser's single tick for the whole file; leads are not synced with Devfolio or any platform; lead status beyond `converted` is set by hand.
+- **Campaign management:** duplicate and progress only; no pause/resume and no scheduler.
+- **Quality page:** no ground truth for real calls, so no accuracy figure; phrase check set is small and team-written. Sample events from an older build have no sample leads until "Load sample leads" (or `POST /api/demo/seed-leads`).
+- First visit to a new page in the Vite dev server can render blank for a few seconds while it compiles.
+- **Browser demo call:** text-to-speech and speech-to-text were run against a live ElevenLabs key (2026-10-09): English speech round-trips correctly and through the intent rules end to end (yes, stop, unsure, venue question). **Malayalam is weak:** audio is produced, but transcribing Malayalam speech returned Roman-letter, mostly wrong text (e.g. 'Ate nya vran'), with or without a language hint. That test used synthetic ElevenLabs audio, not a real Malayalam speaker, so it is indicative only. The stock voice's Malayalam pronunciation was not judged by a Malayalam speaker. Wrong transcripts do not match confirm phrases, so they go to review rather than being treated as a yes. A short recording is transcribed once; there is no live streaming or barge-in. Voice id defaults to a stock voice that your plan may not allow. Browsers need microphone permission and HTTPS or localhost. Recordings are sent to ElevenLabs and not stored by Cadence.
+- **No real phone calls without Exotel:** the hackathon organisers confirmed an Exotel key problem. Every call in this build is simulated or a browser demo; the Exotel code path remains implemented to documented shapes and unverified.
+- **Live call:** driven end to end in headless Chrome with a fake microphone playing synthetic English speech (confirm; unsure then clarify then handed to a person). Not tried with a real human voice, other browsers, speakers/echo in a room, or a noisy microphone. The agent cannot be interrupted while speaking (no barge-in), and the opening script is long because it is the campaign's keypad script. Silence detection uses fixed thresholds that may need tuning per microphone. Malayalam closing lines are unreviewed by a native speaker and Malayalam transcription is unreliable (see above), so use English or keys for the demo.
