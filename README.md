@@ -4,7 +4,7 @@ The official project submission repository for **DEFINE 4.0 — The World's Real
 
 ---
 
-# < Project Name >
+# CADENCE
 
 <!-- Add your project cover image below -->
 
@@ -19,10 +19,10 @@ The official project submission repository for **DEFINE 4.0 — The World's Real
 
 | Name | Role | GitHub | LinkedIn |
 |------|------|--------|----------|
-| Full Name | Role | [@username](https://github.com/username) | [Profile](https://linkedin.com/in/username) |
-| Full Name | Role | [@username](https://github.com/username) | [Profile](https://linkedin.com/in/username) |
-| Full Name | Role | [@username](https://github.com/username) | [Profile](https://linkedin.com/in/username) |
-| Full Name | Role | [@username](https://github.com/username) | [Profile](https://linkedin.com/in/username) |
+| CHRIS ALEX | Role | [@Chris42alex](https://github.com/Chris42alex) | [Profile](https://linkedin.com/in/chris-oommen-alex) |
+| Kevin James | Role | [@Kevinjames005](https://github.com/Kevinjames005) | [Profile](https://linkedin.com/in/kevinjames2005) |
+| Athira S | Role | [@athxra](https://github.com/athxra) | [Profile](https://linkedin.com/in/username) |
+| Avin Joy | Role | [@ajsike2310](https://github.com/ajsike2310) | [Profile](https://linkedin.com/in/avin-joy-230237260) |
 
 ---
 
