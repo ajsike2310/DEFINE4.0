@@ -1,11 +1,11 @@
 """Follow-up work queue with transparent, rule-based priorities (no AI scoring)."""
 from datetime import timedelta
 
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..core.db import utcnow
-from ..models import CallAttempt, Campaign, FollowUp, IntentResult, Recipient
+from ..models import FollowUp, IntentResult
+from ..repositories import followups as followups_repo
 from .campaigns import clarify_blocker
 
 RECOMMENDED = {
@@ -29,19 +29,9 @@ def _priority(f: FollowUp, intent: IntentResult | None) -> tuple[int, str]:
 
 def build_queue(db: Session, event_id: int | None = None, campaign_id: int | None = None,
                 include_closed: bool = False) -> list[dict]:
-    q = select(FollowUp)
-    if not include_closed:
-        q = q.where(FollowUp.status.in_(("pending", "scheduled")))
-    if campaign_id:
-        q = q.where(FollowUp.campaign_id == campaign_id)
     items = []
-    for f in db.scalars(q):
-        camp = db.get(Campaign, f.campaign_id)
-        if event_id and camp.event_id != event_id:
-            continue
-        rec = db.get(Recipient, f.recipient_id)
-        intent = db.get(IntentResult, f.source_intent_id) if f.source_intent_id else None
-        att = db.get(CallAttempt, intent.call_attempt_id) if intent else None
+    for f, camp, rec, intent, att in followups_repo.queue_rows(db, event_id=event_id, campaign_id=campaign_id,
+                                                              include_closed=include_closed):
         prio, why = _priority(f, intent)
         tried = any(a.mode == "clarify" for a in rec.attempts)
         items.append(dict(

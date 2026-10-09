@@ -1,0 +1,188 @@
+[
+ {
+  "type": "table",
+  "name": "call_attempts",
+  "tbl_name": "call_attempts",
+  "sql": "CREATE TABLE call_attempts (\n\tid INTEGER NOT NULL, \n\tcampaign_id INTEGER NOT NULL, \n\trecipient_id INTEGER NOT NULL, \n\tprovider VARCHAR(20) NOT NULL, \n\tis_simulated BOOLEAN DEFAULT 0 NOT NULL, \n\tprovider_call_id VARCHAR(100), \n\tattempt_number INTEGER NOT NULL, \n\tmode VARCHAR(10) DEFAULT 'main' NOT NULL, \n\tcall_language VARCHAR(10) NOT NULL, \n\tstatus VARCHAR(20) DEFAULT 'queued' NOT NULL, \n\tstarted_at DATETIME, \n\tanswered_at DATETIME, \n\tcompleted_at DATETIME, \n\tfailure_reason VARCHAR(200), \n\tnext_retry_at DATETIME, \n\tcreated_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL, \n\tCONSTRAINT pk_call_attempts PRIMARY KEY (id), \n\tCONSTRAINT uq_attempt_number UNIQUE (recipient_id, attempt_number), \n\tCONSTRAINT ck_call_attempts_mode CHECK (mode IN ('main', 'clarify')), \n\tCONSTRAINT ck_call_attempts_status CHECK (status IN ('queued', 'initiating', 'ringing', 'answered', 'completed', 'failed', 'busy', 'no_answer', 'voicemail', 'cancelled')), \n\tCONSTRAINT ck_call_attempts_attempt_number_positive CHECK (attempt_number >= 1), \n\tCONSTRAINT fk_call_attempts_campaign_id_campaigns FOREIGN KEY(campaign_id) REFERENCES campaigns (id) ON DELETE CASCADE, \n\tCONSTRAINT fk_call_attempts_recipient_id_recipients FOREIGN KEY(recipient_id) REFERENCES recipients (id) ON DELETE CASCADE\n)"
+ },
+ {
+  "type": "table",
+  "name": "campaigns",
+  "tbl_name": "campaigns",
+  "sql": "CREATE TABLE campaigns (\n\tid INTEGER NOT NULL, \n\tevent_id INTEGER NOT NULL, \n\tname VARCHAR(200) NOT NULL, \n\tpurpose VARCHAR(50) DEFAULT 'attendance_confirmation' NOT NULL, \n\tmessages JSON NOT NULL, \n\tlanguages JSON NOT NULL, \n\tstatus VARCHAR(20) DEFAULT 'draft' NOT NULL, \n\tscheduled_at DATETIME, \n\tmax_attempts INTEGER DEFAULT '3' NOT NULL, \n\trequire_consent BOOLEAN DEFAULT 1 NOT NULL, \n\tis_demo BOOLEAN DEFAULT 0 NOT NULL, \n\tcreated_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL, \n\tupdated_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL, \n\tCONSTRAINT pk_campaigns PRIMARY KEY (id), \n\tCONSTRAINT ck_campaigns_status CHECK (status IN ('draft', 'scheduled', 'running', 'completed', 'cancelled')), \n\tCONSTRAINT ck_campaigns_purpose CHECK (purpose IN ('attendance_confirmation', 'event_announcement', 'schedule_venue_update', 'submission_deadline_reminder', 'participant_followup')), \n\tCONSTRAINT ck_campaigns_max_attempts_range CHECK (max_attempts BETWEEN 1 AND 5), \n\tCONSTRAINT fk_campaigns_event_id_events FOREIGN KEY(event_id) REFERENCES events (id) ON DELETE RESTRICT\n)"
+ },
+ {
+  "type": "table",
+  "name": "events",
+  "tbl_name": "events",
+  "sql": "CREATE TABLE events (\n\tid INTEGER NOT NULL, \n\tname VARCHAR(200) NOT NULL, \n\tdescription VARCHAR(500) DEFAULT '' NOT NULL, \n\tapproved_info JSON DEFAULT '{}' NOT NULL, \n\torganizer_contact VARCHAR(200), \n\tis_demo BOOLEAN DEFAULT 0 NOT NULL, \n\tcreated_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL, \n\tupdated_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL, \n\tCONSTRAINT pk_events PRIMARY KEY (id)\n)"
+ },
+ {
+  "type": "table",
+  "name": "follow_ups",
+  "tbl_name": "follow_ups",
+  "sql": "CREATE TABLE follow_ups (\n\tid INTEGER NOT NULL, \n\tcampaign_id INTEGER NOT NULL, \n\trecipient_id INTEGER NOT NULL, \n\tsource_intent_id INTEGER, \n\taction_type VARCHAR(30) NOT NULL, \n\tstatus VARCHAR(20) DEFAULT 'pending' NOT NULL, \n\tscheduled_at DATETIME, \n\tnote VARCHAR(300) DEFAULT '' NOT NULL, \n\tcreated_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL, \n\tcompleted_at DATETIME, \n\tupdated_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL, \n\tCONSTRAINT pk_follow_ups PRIMARY KEY (id), \n\tCONSTRAINT ck_follow_ups_action_type CHECK (action_type IN ('callback', 'human_review', 'send_information', 'clarification')), \n\tCONSTRAINT ck_follow_ups_status CHECK (status IN ('pending', 'scheduled', 'completed', 'cancelled')), \n\tCONSTRAINT fk_follow_ups_campaign_id_campaigns FOREIGN KEY(campaign_id) REFERENCES campaigns (id) ON DELETE CASCADE, \n\tCONSTRAINT fk_follow_ups_recipient_id_recipients FOREIGN KEY(recipient_id) REFERENCES recipients (id) ON DELETE CASCADE, \n\tCONSTRAINT fk_follow_ups_source_intent_id_intent_results FOREIGN KEY(source_intent_id) REFERENCES intent_results (id) ON DELETE SET NULL\n)"
+ },
+ {
+  "type": "table",
+  "name": "import_runs",
+  "tbl_name": "import_runs",
+  "sql": "CREATE TABLE import_runs (\n\tid INTEGER NOT NULL, \n\tkind VARCHAR(20) NOT NULL, \n\tevent_id INTEGER NOT NULL, \n\tcampaign_id INTEGER, \n\tfilename VARCHAR(200) DEFAULT '' NOT NULL, \n\trows_total INTEGER NOT NULL, \n\timported INTEGER NOT NULL, \n\trejected INTEGER NOT NULL, \n\treasons JSON DEFAULT '{}' NOT NULL, \n\tis_demo BOOLEAN DEFAULT 0 NOT NULL, \n\tcreated_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL, \n\tCONSTRAINT pk_import_runs PRIMARY KEY (id), \n\tCONSTRAINT ck_import_runs_kind CHECK (kind IN ('participants', 'leads')), \n\tCONSTRAINT ck_import_runs_counts_consistent CHECK (rows_total >= 0 AND imported >= 0 AND rejected >= 0 AND imported + rejected <= rows_total), \n\tCONSTRAINT fk_import_runs_event_id_events FOREIGN KEY(event_id) REFERENCES events (id) ON DELETE RESTRICT, \n\tCONSTRAINT fk_import_runs_campaign_id_campaigns FOREIGN KEY(campaign_id) REFERENCES campaigns (id) ON DELETE SET NULL\n)"
+ },
+ {
+  "type": "table",
+  "name": "intent_results",
+  "tbl_name": "intent_results",
+  "sql": "CREATE TABLE intent_results (\n\tid INTEGER NOT NULL, \n\tcall_attempt_id INTEGER NOT NULL, \n\trecipient_id INTEGER NOT NULL, \n\tcampaign_id INTEGER NOT NULL, \n\tintent VARCHAR(30) NOT NULL, \n\tscore FLOAT NOT NULL, \n\tmethod VARCHAR(10) NOT NULL, \n\tdetected_language VARCHAR(10) NOT NULL, \n\tevidence TEXT DEFAULT '' NOT NULL, \n\tnotes JSON DEFAULT '[]' NOT NULL, \n\tneeds_review BOOLEAN DEFAULT 0 NOT NULL, \n\tnext_action VARCHAR(30) NOT NULL, \n\tprocessing_status VARCHAR(20) DEFAULT 'processed' NOT NULL, \n\tcreated_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL, \n\tCONSTRAINT pk_intent_results PRIMARY KEY (id), \n\tCONSTRAINT uq_intent_results_call_attempt_id UNIQUE (call_attempt_id), \n\tCONSTRAINT ck_intent_results_intent CHECK (intent IN ('confirm', 'decline', 'callback_requested', 'information_requested', 'acknowledgement', 'opt_out', 'unclear', 'human_required')), \n\tCONSTRAINT ck_intent_results_method CHECK (method IN ('dtmf', 'rules', 'none')), \n\tCONSTRAINT ck_intent_results_score_range CHECK (score BETWEEN 0 AND 1), \n\tCONSTRAINT fk_intent_results_call_attempt_id_call_attempts FOREIGN KEY(call_attempt_id) REFERENCES call_attempts (id) ON DELETE CASCADE, \n\tCONSTRAINT fk_intent_results_recipient_id_recipients FOREIGN KEY(recipient_id) REFERENCES recipients (id) ON DELETE CASCADE, \n\tCONSTRAINT fk_intent_results_campaign_id_campaigns FOREIGN KEY(campaign_id) REFERENCES campaigns (id) ON DELETE CASCADE\n)"
+ },
+ {
+  "type": "table",
+  "name": "leads",
+  "tbl_name": "leads",
+  "sql": "CREATE TABLE leads (\n\tid INTEGER NOT NULL, \n\tevent_id INTEGER NOT NULL, \n\tname VARCHAR(200) NOT NULL, \n\tphone VARCHAR(20) NOT NULL, \n\temail VARCHAR(200), \n\tsource VARCHAR(30) DEFAULT 'manual' NOT NULL, \n\tinterest VARCHAR(100), \n\tpreferred_language VARCHAR(10), \n\tconsent_status VARCHAR(20) DEFAULT 'unknown' NOT NULL, \n\tstatus VARCHAR(20) DEFAULT 'new' NOT NULL, \n\tnotes VARCHAR(500) DEFAULT '' NOT NULL, \n\trecipient_id INTEGER, \n\tis_demo BOOLEAN DEFAULT 0 NOT NULL, \n\tcreated_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL, \n\tupdated_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL, \n\tCONSTRAINT pk_leads PRIMARY KEY (id), \n\tCONSTRAINT uq_lead_event_phone UNIQUE (event_id, phone), \n\tCONSTRAINT ck_leads_source CHECK (source IN ('registration_form', 'csv_import', 'manual', 'referral', 'walk_in')), \n\tCONSTRAINT ck_leads_status CHECK (status IN ('new', 'contacted', 'qualified', 'converted', 'lost')), \n\tCONSTRAINT ck_leads_consent_status CHECK (consent_status IN ('granted', 'unknown', 'revoked')), \n\tCONSTRAINT ck_leads_phone_e164 CHECK (length(phone) BETWEEN 9 AND 16 AND substr(phone, 1, 1) = '+'), \n\tCONSTRAINT fk_leads_event_id_events FOREIGN KEY(event_id) REFERENCES events (id) ON DELETE RESTRICT, \n\tCONSTRAINT fk_leads_recipient_id_recipients FOREIGN KEY(recipient_id) REFERENCES recipients (id) ON DELETE SET NULL\n)"
+ },
+ {
+  "type": "table",
+  "name": "provider_events",
+  "tbl_name": "provider_events",
+  "sql": "CREATE TABLE provider_events (\n\tid INTEGER NOT NULL, \n\tprovider VARCHAR(20) NOT NULL, \n\tevent_id VARCHAR(200) NOT NULL, \n\tcall_attempt_id INTEGER, \n\tkind VARCHAR(20) NOT NULL, \n\tresult VARCHAR(100) DEFAULT 'applied' NOT NULL, \n\treceived_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL, \n\tCONSTRAINT pk_provider_events PRIMARY KEY (id), \n\tCONSTRAINT uq_provider_event UNIQUE (provider, event_id), \n\tCONSTRAINT ck_provider_events_kind CHECK (kind IN ('status', 'response')), \n\tCONSTRAINT fk_provider_events_call_attempt_id_call_attempts FOREIGN KEY(call_attempt_id) REFERENCES call_attempts (id) ON DELETE SET NULL\n)"
+ },
+ {
+  "type": "table",
+  "name": "recipients",
+  "tbl_name": "recipients",
+  "sql": "CREATE TABLE recipients (\n\tid INTEGER NOT NULL, \n\tcampaign_id INTEGER NOT NULL, \n\texternal_ref VARCHAR(100), \n\tname VARCHAR(200) NOT NULL, \n\tphone VARCHAR(20) NOT NULL, \n\tpreferred_language VARCHAR(10), \n\tsegment VARCHAR(100), \n\tconsent_status VARCHAR(20) DEFAULT 'unknown' NOT NULL, \n\topted_out BOOLEAN DEFAULT 0 NOT NULL, \n\toutcome VARCHAR(30) DEFAULT 'pending' NOT NULL, \n\tis_demo BOOLEAN DEFAULT 0 NOT NULL, \n\tcreated_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL, \n\tupdated_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL, \n\tCONSTRAINT pk_recipients PRIMARY KEY (id), \n\tCONSTRAINT uq_recipient_campaign_phone UNIQUE (campaign_id, phone), \n\tCONSTRAINT ck_recipients_consent_status CHECK (consent_status IN ('granted', 'unknown', 'revoked')), \n\tCONSTRAINT ck_recipients_outcome CHECK (outcome IN ('pending', 'confirmed', 'acknowledged', 'declined', 'callback_requested', 'information_requested', 'unclear', 'human_required', 'opted_out', 'no_response')), \n\tCONSTRAINT ck_recipients_phone_e164 CHECK (length(phone) BETWEEN 9 AND 16 AND substr(phone, 1, 1) = '+'), \n\tCONSTRAINT fk_recipients_campaign_id_campaigns FOREIGN KEY(campaign_id) REFERENCES campaigns (id) ON DELETE CASCADE\n)"
+ },
+ {
+  "type": "table",
+  "name": "webhook_logs",
+  "tbl_name": "webhook_logs",
+  "sql": "CREATE TABLE webhook_logs (\n\tid INTEGER NOT NULL, \n\tprovider VARCHAR(20) NOT NULL, \n\tendpoint VARCHAR(30) NOT NULL, \n\tmethod VARCHAR(8) NOT NULL, \n\treceived_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL, \n\trequest_id VARCHAR(64), \n\tcall_attempt_id INTEGER, \n\tok BOOLEAN DEFAULT 0 NOT NULL, \n\tresult VARCHAR(100) DEFAULT '' NOT NULL, \n\tpayload JSON DEFAULT '{}' NOT NULL, \n\tCONSTRAINT pk_webhook_logs PRIMARY KEY (id), \n\tCONSTRAINT fk_webhook_logs_call_attempt_id_call_attempts FOREIGN KEY(call_attempt_id) REFERENCES call_attempts (id) ON DELETE SET NULL\n)"
+ },
+ {
+  "type": "index",
+  "name": "ix_call_attempts_campaign_id_status",
+  "tbl_name": "call_attempts",
+  "sql": "CREATE INDEX ix_call_attempts_campaign_id_status ON call_attempts (campaign_id, status)"
+ },
+ {
+  "type": "index",
+  "name": "ix_campaigns_event_id_status",
+  "tbl_name": "campaigns",
+  "sql": "CREATE INDEX ix_campaigns_event_id_status ON campaigns (event_id, status)"
+ },
+ {
+  "type": "index",
+  "name": "ix_campaigns_status_scheduled_at",
+  "tbl_name": "campaigns",
+  "sql": "CREATE INDEX ix_campaigns_status_scheduled_at ON campaigns (status, scheduled_at)"
+ },
+ {
+  "type": "index",
+  "name": "ix_follow_ups_campaign_id_status",
+  "tbl_name": "follow_ups",
+  "sql": "CREATE INDEX ix_follow_ups_campaign_id_status ON follow_ups (campaign_id, status)"
+ },
+ {
+  "type": "index",
+  "name": "ix_follow_ups_recipient_id_status",
+  "tbl_name": "follow_ups",
+  "sql": "CREATE INDEX ix_follow_ups_recipient_id_status ON follow_ups (recipient_id, status)"
+ },
+ {
+  "type": "index",
+  "name": "ix_follow_ups_source_intent_id",
+  "tbl_name": "follow_ups",
+  "sql": "CREATE INDEX ix_follow_ups_source_intent_id ON follow_ups (source_intent_id)"
+ },
+ {
+  "type": "index",
+  "name": "ix_follow_ups_status_scheduled_at",
+  "tbl_name": "follow_ups",
+  "sql": "CREATE INDEX ix_follow_ups_status_scheduled_at ON follow_ups (status, scheduled_at)"
+ },
+ {
+  "type": "index",
+  "name": "ix_import_runs_campaign_id",
+  "tbl_name": "import_runs",
+  "sql": "CREATE INDEX ix_import_runs_campaign_id ON import_runs (campaign_id)"
+ },
+ {
+  "type": "index",
+  "name": "ix_import_runs_event_id_kind",
+  "tbl_name": "import_runs",
+  "sql": "CREATE INDEX ix_import_runs_event_id_kind ON import_runs (event_id, kind)"
+ },
+ {
+  "type": "index",
+  "name": "ix_intent_results_campaign_id_intent",
+  "tbl_name": "intent_results",
+  "sql": "CREATE INDEX ix_intent_results_campaign_id_intent ON intent_results (campaign_id, intent)"
+ },
+ {
+  "type": "index",
+  "name": "ix_intent_results_recipient_id_id",
+  "tbl_name": "intent_results",
+  "sql": "CREATE INDEX ix_intent_results_recipient_id_id ON intent_results (recipient_id, id)"
+ },
+ {
+  "type": "index",
+  "name": "ix_leads_event_id_status",
+  "tbl_name": "leads",
+  "sql": "CREATE INDEX ix_leads_event_id_status ON leads (event_id, status)"
+ },
+ {
+  "type": "index",
+  "name": "ix_leads_phone",
+  "tbl_name": "leads",
+  "sql": "CREATE INDEX ix_leads_phone ON leads (phone)"
+ },
+ {
+  "type": "index",
+  "name": "ix_leads_recipient_id",
+  "tbl_name": "leads",
+  "sql": "CREATE INDEX ix_leads_recipient_id ON leads (recipient_id)"
+ },
+ {
+  "type": "index",
+  "name": "ix_provider_events_call_attempt_id",
+  "tbl_name": "provider_events",
+  "sql": "CREATE INDEX ix_provider_events_call_attempt_id ON provider_events (call_attempt_id)"
+ },
+ {
+  "type": "index",
+  "name": "ix_recipients_campaign_id_outcome",
+  "tbl_name": "recipients",
+  "sql": "CREATE INDEX ix_recipients_campaign_id_outcome ON recipients (campaign_id, outcome)"
+ },
+ {
+  "type": "index",
+  "name": "ix_recipients_phone",
+  "tbl_name": "recipients",
+  "sql": "CREATE INDEX ix_recipients_phone ON recipients (phone)"
+ },
+ {
+  "type": "index",
+  "name": "ix_webhook_logs_call_attempt_id",
+  "tbl_name": "webhook_logs",
+  "sql": "CREATE INDEX ix_webhook_logs_call_attempt_id ON webhook_logs (call_attempt_id)"
+ },
+ {
+  "type": "index",
+  "name": "ix_webhook_logs_received_at",
+  "tbl_name": "webhook_logs",
+  "sql": "CREATE INDEX ix_webhook_logs_received_at ON webhook_logs (received_at)"
+ },
+ {
+  "type": "index",
+  "name": "uq_call_attempts_provider_call",
+  "tbl_name": "call_attempts",
+  "sql": "CREATE UNIQUE INDEX uq_call_attempts_provider_call ON call_attempts (provider, provider_call_id) WHERE provider_call_id IS NOT NULL"
+ },
+ {
+  "type": "index",
+  "name": "uq_follow_ups_open_review",
+  "tbl_name": "follow_ups",
+  "sql": "CREATE UNIQUE INDEX uq_follow_ups_open_review ON follow_ups (recipient_id) WHERE action_type = 'human_review' AND status IN ('pending', 'scheduled')"
+ }
+]

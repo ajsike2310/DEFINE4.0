@@ -1,9 +1,10 @@
 """Campaign management: per-campaign progress and a rule-based "next step", plus duplication."""
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from ..models import Campaign, Recipient
+from ..models import Campaign
+from ..repositories import campaigns as campaigns_repo
 from . import campaigns as svc
+from . import participants
 
 ATTENTION = ("unclear", "human_required", "callback_requested", "information_requested", "no_response")
 
@@ -38,10 +39,7 @@ def campaign_row(c: Campaign) -> dict:
 
 
 def overview(db: Session, event_id: int | None) -> dict:
-    q = select(Campaign).order_by(Campaign.id.desc())
-    if event_id:
-        q = q.where(Campaign.event_id == event_id)
-    rows = [campaign_row(c) for c in db.scalars(q)]
+    rows = [campaign_row(c) for c in campaigns_repo.with_participants(db, event_id)]
     by_status: dict[str, int] = {}
     for r in rows:
         by_status[r["status"]] = by_status.get(r["status"], 0) + 1
@@ -59,16 +57,7 @@ def duplicate(db: Session, src: Campaign, name: str | None, copy_participants: b
                    max_attempts=src.max_attempts, require_consent=src.require_consent, is_demo=src.is_demo)
     db.add(new)
     db.flush()
-    copied = skipped = 0
     if copy_participants:
-        for r in src.recipients:
-            if r.opted_out or r.consent_status == "revoked":
-                skipped += 1
-                continue
-            lang = r.preferred_language if r.preferred_language in new.languages else None
-            db.add(Recipient(campaign_id=new.id, external_ref=r.external_ref, name=r.name, phone=r.phone,
-                             preferred_language=lang, segment=r.segment, consent_status=r.consent_status,
-                             is_demo=new.is_demo))
-            copied += 1
+        return new, participants.copy_from(db, new, src)     # same safe rules, incl. numbers that opted out elsewhere
     db.commit()
-    return new, {"copied": copied, "skipped": skipped}
+    return new, {"copied": 0, "skipped": 0}

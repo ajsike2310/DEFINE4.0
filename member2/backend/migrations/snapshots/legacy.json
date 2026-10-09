@@ -1,0 +1,128 @@
+[
+ {
+  "type": "table",
+  "name": "call_attempts",
+  "tbl_name": "call_attempts",
+  "sql": "CREATE TABLE call_attempts (\n\tid INTEGER NOT NULL, \n\tcampaign_id INTEGER NOT NULL, \n\trecipient_id INTEGER NOT NULL, \n\tprovider VARCHAR(20) NOT NULL, \n\tis_simulated BOOLEAN NOT NULL, \n\tprovider_call_id VARCHAR(100), \n\tattempt_number INTEGER NOT NULL, \n\tmode VARCHAR(10) NOT NULL, \n\tcall_language VARCHAR(10) NOT NULL, \n\tstatus VARCHAR(20) NOT NULL, \n\tstarted_at DATETIME, \n\tanswered_at DATETIME, \n\tcompleted_at DATETIME, \n\tfailure_reason VARCHAR(200), \n\tnext_retry_at DATETIME, \n\tcreated_at DATETIME NOT NULL, \n\tPRIMARY KEY (id), \n\tCONSTRAINT uq_attempt_number UNIQUE (recipient_id, attempt_number), \n\tFOREIGN KEY(campaign_id) REFERENCES campaigns (id), \n\tFOREIGN KEY(recipient_id) REFERENCES recipients (id)\n)"
+ },
+ {
+  "type": "table",
+  "name": "campaigns",
+  "tbl_name": "campaigns",
+  "sql": "CREATE TABLE campaigns (\n\tid INTEGER NOT NULL, \n\tevent_id INTEGER NOT NULL, \n\tname VARCHAR(200) NOT NULL, \n\tpurpose VARCHAR(50) NOT NULL, \n\tmessages JSON NOT NULL, \n\tlanguages JSON NOT NULL, \n\tstatus VARCHAR(20) NOT NULL, \n\tscheduled_at DATETIME, \n\tmax_attempts INTEGER NOT NULL, \n\trequire_consent BOOLEAN NOT NULL, \n\tis_demo BOOLEAN NOT NULL, \n\tcreated_at DATETIME NOT NULL, \n\tupdated_at DATETIME NOT NULL, \n\tPRIMARY KEY (id), \n\tFOREIGN KEY(event_id) REFERENCES events (id)\n)"
+ },
+ {
+  "type": "table",
+  "name": "events",
+  "tbl_name": "events",
+  "sql": "CREATE TABLE events (\n\tid INTEGER NOT NULL, \n\tname VARCHAR(200) NOT NULL, \n\tdescription VARCHAR(500) NOT NULL, \n\tapproved_info JSON NOT NULL, \n\torganizer_contact VARCHAR(200), \n\tis_demo BOOLEAN NOT NULL, \n\tcreated_at DATETIME NOT NULL, \n\tupdated_at DATETIME NOT NULL, \n\tPRIMARY KEY (id)\n)"
+ },
+ {
+  "type": "table",
+  "name": "follow_ups",
+  "tbl_name": "follow_ups",
+  "sql": "CREATE TABLE follow_ups (\n\tid INTEGER NOT NULL, \n\tcampaign_id INTEGER NOT NULL, \n\trecipient_id INTEGER NOT NULL, \n\tsource_intent_id INTEGER, \n\taction_type VARCHAR(30) NOT NULL, \n\tstatus VARCHAR(20) NOT NULL, \n\tscheduled_at DATETIME, \n\tnote VARCHAR(300) NOT NULL, \n\tcreated_at DATETIME NOT NULL, \n\tcompleted_at DATETIME, \n\tPRIMARY KEY (id), \n\tFOREIGN KEY(campaign_id) REFERENCES campaigns (id), \n\tFOREIGN KEY(recipient_id) REFERENCES recipients (id), \n\tFOREIGN KEY(source_intent_id) REFERENCES intent_results (id)\n)"
+ },
+ {
+  "type": "table",
+  "name": "import_runs",
+  "tbl_name": "import_runs",
+  "sql": "CREATE TABLE import_runs (\n\tid INTEGER NOT NULL, \n\tkind VARCHAR(20) NOT NULL, \n\tevent_id INTEGER NOT NULL, \n\tcampaign_id INTEGER, \n\tfilename VARCHAR(200) NOT NULL, \n\trows_total INTEGER NOT NULL, \n\timported INTEGER NOT NULL, \n\trejected INTEGER NOT NULL, \n\treasons JSON NOT NULL, \n\tis_demo BOOLEAN NOT NULL, \n\tcreated_at DATETIME NOT NULL, \n\tPRIMARY KEY (id), \n\tFOREIGN KEY(event_id) REFERENCES events (id), \n\tFOREIGN KEY(campaign_id) REFERENCES campaigns (id)\n)"
+ },
+ {
+  "type": "table",
+  "name": "intent_results",
+  "tbl_name": "intent_results",
+  "sql": "CREATE TABLE intent_results (\n\tid INTEGER NOT NULL, \n\tcall_attempt_id INTEGER NOT NULL, \n\trecipient_id INTEGER NOT NULL, \n\tcampaign_id INTEGER NOT NULL, \n\tintent VARCHAR(30) NOT NULL, \n\tscore FLOAT NOT NULL, \n\tmethod VARCHAR(10) NOT NULL, \n\tdetected_language VARCHAR(10) NOT NULL, \n\tevidence TEXT NOT NULL, \n\tnotes JSON NOT NULL, \n\tneeds_review BOOLEAN NOT NULL, \n\tnext_action VARCHAR(30) NOT NULL, \n\tprocessing_status VARCHAR(20) NOT NULL, \n\tcreated_at DATETIME NOT NULL, \n\tPRIMARY KEY (id), \n\tFOREIGN KEY(call_attempt_id) REFERENCES call_attempts (id), \n\tFOREIGN KEY(recipient_id) REFERENCES recipients (id), \n\tFOREIGN KEY(campaign_id) REFERENCES campaigns (id)\n)"
+ },
+ {
+  "type": "table",
+  "name": "leads",
+  "tbl_name": "leads",
+  "sql": "CREATE TABLE leads (\n\tid INTEGER NOT NULL, \n\tevent_id INTEGER NOT NULL, \n\tname VARCHAR(200) NOT NULL, \n\tphone VARCHAR(20) NOT NULL, \n\temail VARCHAR(200), \n\tsource VARCHAR(30) NOT NULL, \n\tinterest VARCHAR(100), \n\tpreferred_language VARCHAR(10), \n\tconsent_status VARCHAR(20) NOT NULL, \n\tstatus VARCHAR(20) NOT NULL, \n\tnotes VARCHAR(500) NOT NULL, \n\trecipient_id INTEGER, \n\tis_demo BOOLEAN NOT NULL, \n\tcreated_at DATETIME NOT NULL, \n\tupdated_at DATETIME NOT NULL, \n\tPRIMARY KEY (id), \n\tCONSTRAINT uq_lead_event_phone UNIQUE (event_id, phone), \n\tFOREIGN KEY(event_id) REFERENCES events (id), \n\tFOREIGN KEY(recipient_id) REFERENCES recipients (id)\n)"
+ },
+ {
+  "type": "table",
+  "name": "provider_events",
+  "tbl_name": "provider_events",
+  "sql": "CREATE TABLE provider_events (\n\tid INTEGER NOT NULL, \n\tprovider VARCHAR(20) NOT NULL, \n\tevent_id VARCHAR(200) NOT NULL, \n\tcall_attempt_id INTEGER, \n\tkind VARCHAR(20) NOT NULL, \n\tresult VARCHAR(100) NOT NULL, \n\treceived_at DATETIME NOT NULL, \n\tPRIMARY KEY (id), \n\tCONSTRAINT uq_provider_event UNIQUE (provider, event_id), \n\tFOREIGN KEY(call_attempt_id) REFERENCES call_attempts (id)\n)"
+ },
+ {
+  "type": "table",
+  "name": "recipients",
+  "tbl_name": "recipients",
+  "sql": "CREATE TABLE recipients (\n\tid INTEGER NOT NULL, \n\tcampaign_id INTEGER NOT NULL, \n\texternal_ref VARCHAR(100), \n\tname VARCHAR(200) NOT NULL, \n\tphone VARCHAR(20) NOT NULL, \n\tpreferred_language VARCHAR(10), \n\tsegment VARCHAR(100), \n\tconsent_status VARCHAR(20) NOT NULL, \n\topted_out BOOLEAN NOT NULL, \n\toutcome VARCHAR(30) NOT NULL, \n\tis_demo BOOLEAN NOT NULL, \n\tcreated_at DATETIME NOT NULL, \n\tupdated_at DATETIME NOT NULL, \n\tPRIMARY KEY (id), \n\tCONSTRAINT uq_recipient_campaign_phone UNIQUE (campaign_id, phone), \n\tFOREIGN KEY(campaign_id) REFERENCES campaigns (id)\n)"
+ },
+ {
+  "type": "index",
+  "name": "ix_call_attempts_campaign_id",
+  "tbl_name": "call_attempts",
+  "sql": "CREATE INDEX ix_call_attempts_campaign_id ON call_attempts (campaign_id)"
+ },
+ {
+  "type": "index",
+  "name": "ix_call_attempts_provider_call_id",
+  "tbl_name": "call_attempts",
+  "sql": "CREATE INDEX ix_call_attempts_provider_call_id ON call_attempts (provider_call_id)"
+ },
+ {
+  "type": "index",
+  "name": "ix_call_attempts_recipient_id",
+  "tbl_name": "call_attempts",
+  "sql": "CREATE INDEX ix_call_attempts_recipient_id ON call_attempts (recipient_id)"
+ },
+ {
+  "type": "index",
+  "name": "ix_campaigns_event_id",
+  "tbl_name": "campaigns",
+  "sql": "CREATE INDEX ix_campaigns_event_id ON campaigns (event_id)"
+ },
+ {
+  "type": "index",
+  "name": "ix_follow_ups_campaign_id",
+  "tbl_name": "follow_ups",
+  "sql": "CREATE INDEX ix_follow_ups_campaign_id ON follow_ups (campaign_id)"
+ },
+ {
+  "type": "index",
+  "name": "ix_follow_ups_recipient_id",
+  "tbl_name": "follow_ups",
+  "sql": "CREATE INDEX ix_follow_ups_recipient_id ON follow_ups (recipient_id)"
+ },
+ {
+  "type": "index",
+  "name": "ix_import_runs_event_id",
+  "tbl_name": "import_runs",
+  "sql": "CREATE INDEX ix_import_runs_event_id ON import_runs (event_id)"
+ },
+ {
+  "type": "index",
+  "name": "ix_intent_results_call_attempt_id",
+  "tbl_name": "intent_results",
+  "sql": "CREATE INDEX ix_intent_results_call_attempt_id ON intent_results (call_attempt_id)"
+ },
+ {
+  "type": "index",
+  "name": "ix_intent_results_campaign_id",
+  "tbl_name": "intent_results",
+  "sql": "CREATE INDEX ix_intent_results_campaign_id ON intent_results (campaign_id)"
+ },
+ {
+  "type": "index",
+  "name": "ix_intent_results_recipient_id",
+  "tbl_name": "intent_results",
+  "sql": "CREATE INDEX ix_intent_results_recipient_id ON intent_results (recipient_id)"
+ },
+ {
+  "type": "index",
+  "name": "ix_leads_event_id",
+  "tbl_name": "leads",
+  "sql": "CREATE INDEX ix_leads_event_id ON leads (event_id)"
+ },
+ {
+  "type": "index",
+  "name": "ix_recipients_campaign_id",
+  "tbl_name": "recipients",
+  "sql": "CREATE INDEX ix_recipients_campaign_id ON recipients (campaign_id)"
+ }
+]

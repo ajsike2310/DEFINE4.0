@@ -2,7 +2,6 @@
 import logging
 from datetime import timedelta
 
-from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -11,7 +10,13 @@ from member3.intelligence.intent.taxonomy import Intent, NextAction
 from member3.intelligence.pipeline import ResponseInput, process_response
 
 from ..core.db import utcnow
-from ..models import CallAttempt, Campaign, Event, FollowUp, IntentResult, ProviderEvent, Recipient
+from ..models import CallAttempt, FollowUp, IntentResult, ProviderEvent, Recipient
+from ..repositories import campaigns as campaigns_repo
+from ..repositories import events as events_repo
+from ..repositories import followups as followups_repo
+from ..repositories import intents as intents_repo
+from ..repositories import recipients as recipients_repo
+from . import suppression
 from .states import (INTENT_TO_OUTCOME, InvalidTransition, RETRYABLE, TERMINAL_CALL,
                      check_call_transition)
 
@@ -55,19 +60,18 @@ def _status(db, attempt: CallAttempt, ev: PEvent, settings) -> str:
         attempt.completed_at = now
     if new in RETRYABLE:
         attempt.failure_reason = new
-        _after_technical_failure(db, attempt, settings)
+        after_technical_failure(db, attempt, settings)
     return "applied"
 
 
 def _open_review(db, recipient_id: int) -> FollowUp | None:
-    return db.scalar(select(FollowUp).where(FollowUp.recipient_id == recipient_id,
-                                            FollowUp.action_type == "human_review",
-                                            FollowUp.status.in_(("pending", "scheduled"))))
+    return followups_repo.open_review(db, recipient_id)
 
 
-def _after_technical_failure(db, attempt: CallAttempt, settings) -> None:
-    rec = db.get(Recipient, attempt.recipient_id)
-    camp = db.get(Campaign, attempt.campaign_id)
+def after_technical_failure(db, attempt: CallAttempt, settings) -> None:
+    """A call ended in a technical failure: schedule a bounded retry, or give up as `no_response`."""
+    rec = recipients_repo.get(db, attempt.recipient_id)
+    camp = campaigns_repo.get(db, attempt.campaign_id)
     if attempt.mode == "clarify":
         # The one clarification chance was used; outcome stays "unclear" and a person must follow up.
         fu = _open_review(db, rec.id)
@@ -86,11 +90,11 @@ def _after_technical_failure(db, attempt: CallAttempt, settings) -> None:
 def _response(db, attempt: CallAttempt, ev: PEvent) -> str:
     if attempt.status not in ("answered", "completed") or not attempt.answered_at:
         return "ignored:response only accepted for an answered call"
-    if db.scalar(select(IntentResult.id).where(IntentResult.call_attempt_id == attempt.id)):
+    if intents_repo.for_attempt(db, attempt.id):
         return "ignored:attempt already has a classified response"
-    rec = db.get(Recipient, attempt.recipient_id)
-    camp = db.get(Campaign, attempt.campaign_id)
-    event = db.get(Event, camp.event_id)
+    rec = recipients_repo.get(db, attempt.recipient_id)
+    camp = campaigns_repo.get(db, attempt.campaign_id)
+    event = events_repo.get(db, camp.event_id)
     d = process_response(ResponseInput(text=ev.text, dtmf=ev.dtmf, audio_ref=ev.audio_ref))
     if d.intent == Intent.CONFIRM and camp.purpose != "attendance_confirmation":
         # "Yes/OK" to an announcement or reminder is NOT attendance confirmation.
@@ -113,10 +117,11 @@ def _response(db, attempt: CallAttempt, ev: PEvent) -> str:
     if d.intent == Intent.OPT_OUT:
         rec.opted_out = True
         rec.consent_status = "revoked"
-        for fu in db.scalars(select(FollowUp).where(FollowUp.recipient_id == rec.id,
-                                                    FollowUp.status.in_(("pending", "scheduled")))):
+        for fu in followups_repo.open_for_recipient(db, rec.id):
             fu.status, fu.note = "cancelled", "recipient opted out"
-        log.info("opt-out recorded for %s", mask(rec.phone))
+        spread = suppression.record_opt_out(db, rec)     # opt-out wins everywhere in scope, not just this campaign
+        log.info("opt-out recorded for %s (also applied to %d other participant rows, %d leads)",
+                 mask(rec.phone), spread["participants"], spread["leads"])
     elif d.next_action == NextAction.RECORD_OUTCOME and attempt.mode == "clarify":
         fu = _open_review(db, rec.id)      # clarification settled it: close the review task
         if fu:
