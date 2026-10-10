@@ -19,4 +19,6 @@ if __name__ == "__main__":
     logging_utils.install()           # redacts the stream secret from logs
     from dashboard.main import create_app
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 8002
+    print(f"Dashboard (original UI):  http://127.0.0.1:{port}/
+React app (frontend/):    http://127.0.0.1:{port}/app/   (build once: cd frontend && npm install && npm run build)", flush=True)
     uvicorn.run(create_app(), host="127.0.0.1", port=port, access_log=False, log_config=None)

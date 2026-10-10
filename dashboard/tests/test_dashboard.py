@@ -111,7 +111,7 @@ def test_add_new_person_and_csv_into_campaign(client):
     done = client.get(f"/api/campaigns/{camp['id']}").json()
     assert len(done["calls"]) == 2
     texts = {c["participant_name"]: client.post(f"/api/campaigns/{camp['id']}/preview", json={"participant_id": c["participant_id"]}).json()["text"] for c in done["calls"]}
-    assert texts["Hari"] == "Hari, pay Rs 500?" and "Rs 900" in texts["Gita"]
+    assert texts["Hari"].startswith("Hari, pay Rs 500?") and "press 1 to confirm" in texts["Hari"] and "Rs 900" in texts["Gita"]
     assert len(client.get(f"/api/events/{ev['id']}/participants").json()) == 2
 
 
@@ -343,3 +343,76 @@ def test_old_campaign_database_gets_retry_columns(tmp_path):
     row = d.one("SELECT auto_retry, retry_interval_min FROM campaigns WHERE id=1")
     assert row == {"auto_retry": 1, "retry_interval_min": 30}
     assert "next_attempt_at" in {r["name"] for r in d.q("PRAGMA table_info(calls)")}
+
+
+# ------------------------------------------------------------------ voicemail and keypad
+def fake_result(attempt_id, call_outcome="voicemail", attendance="no_response", **kw):
+    from member3.live.results import CallResult
+    return CallResult(event_id=f"vm-{attempt_id}-{call_outcome}", provider_call_id="p", attempt_id=attempt_id, participant_id="1",
+                      campaign_id="1", attendance=attendance, call_outcome=call_outcome, **kw)
+
+
+def real_call_setup(client, max_attempts=2):
+    """A campaign whose calls we place through a stub 'real' provider, so results arrive the way live calls deliver them."""
+    eng = client.app.state.engine
+    ev = make_event(client)
+    pid = people(client, ev, [("Machine", "9400000001")])["Machine"]
+    camp = client.post(f"/api/events/{ev['id']}/campaigns", json={"name": "VM", "max_attempts": max_attempts, "retry_interval_min": 0}).json()
+    client.post(f"/api/campaigns/{camp['id']}/members", json={"participant_ids": [pid]})
+    return eng, ev, camp
+
+
+def test_voicemail_is_recorded_retried_and_finally_handed_to_a_person(client):
+    from member3.integrations.base import InitiateResult
+
+    eng, ev, camp = real_call_setup(client)
+    eng.provider.is_simulated = False
+    placed = []
+
+    def dial(**kw):
+        placed.append(kw["attempt_id"])
+        return InitiateResult(f"sid-{kw['attempt_id']}")
+    eng.provider.initiate_call = dial
+    try:
+        client.post(f"/api/campaigns/{camp['id']}/launch")
+        end = time.time() + 5
+        while len(placed) < 1 and time.time() < end:
+            time.sleep(0.05)
+        time.sleep(0.2)
+        eng.on_result(fake_result(placed[0]))                                          # the agent hung up on an answering machine
+        call = client.get(f"/api/campaigns/{camp['id']}").json()["calls"][0]
+        assert call["status"] == "voicemail" and call["outcome"] == "voicemail" and call["attendance"] is None
+        assert call["next_attempt_at"] and client.get("/api/tasks").json() == []         # will be tried again, nobody needs to act yet
+        assert client.get(f"/api/events/{ev['id']}/participants").json()[0]["rsvp"] == ""   # a machine is never an RSVP
+        eng.on_result(fake_result(placed[0]))                                          # same result delivered twice: ignored
+        assert eng.run_due_retries() == 1
+        end = time.time() + 5
+        while len(placed) < 2 and time.time() < end:
+            time.sleep(0.05)
+        time.sleep(0.2)
+        eng.on_result(fake_result(placed[1]))                                          # a machine again on the last attempt
+        assert [t["reason"].startswith("Not reached after 2 attempts (voicemail)") for t in client.get("/api/tasks").json()] == [True]
+        assert client.get(f"/api/campaigns/{camp['id']}").json()["calls"][0]["next_attempt_at"] is None
+    finally:
+        eng.provider.is_simulated = True
+
+
+def test_voicemail_setting_on_both_apis(client):
+    assert client.get("/api/settings").json()["voicemail"] == {"leave_message": False}                 # off unless chosen
+    assert client.put("/api/settings/voicemail", json={"leave_message": True}).json()["voicemail"] == {"leave_message": True}
+    assert client.get("/api/v2/settings").json()["voicemail"] == {"leave_message": True}               # same setting in the React API
+    assert client.put("/api/v2/settings/voicemail", json={"leave_message": False}).json()["voicemail"] == {"leave_message": False}
+    assert client.app.state.engine.get_voicemail() == {"leave_message": False}
+
+
+def test_calls_offer_the_keypad_once_and_only_on_questions(client):
+    ev = make_event(client)
+    ids = people(client, ev, [("Kay", "9400000002")])
+    inv = client.post(f"/api/events/{ev['id']}/campaigns", json={"name": "Invite", "purpose": "invite"}).json()
+    upd = client.post(f"/api/events/{ev['id']}/campaigns", json={"name": "Update", "purpose": "update"}).json()
+    own = client.post(f"/api/events/{ev['id']}/campaigns", json={"name": "Own", "purpose": "invite",
+                                                                  "template": "Hi {first_name}. Press 1 if you will come, 2 if not."}).json()
+    text = lambda c: client.post(f"/api/campaigns/{c['id']}/preview", json={"participant_id": ids["Kay"]}).json()["text"]
+    assert text(inv).count("keypad") == 1 and text(inv).endswith("or 9 to stop receiving calls.")
+    assert "keypad" not in text(upd)                                                # an announcement has no question to answer
+    assert text(own).count("1") == 1 and "keypad" not in text(own).lower()          # the organiser already explained the keys

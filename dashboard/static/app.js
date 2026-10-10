@@ -1,5 +1,5 @@
 "use strict";
-/* Outreach dashboard: hash-routed single page, no build step. All user data is escaped through esc(). */
+/* Cadence dashboard: hash-routed single page, no build step. All user data is escaped through esc(). */
 
 const $ = (s, r = document) => r.querySelector(s);
 const app = $("#app");
@@ -540,7 +540,13 @@ async function settings() {
         <div><label for="h-end">Until</label><input id="h-end" type="time" value="${esc(h.end)}"></div></div>
       ${st.simulated ? `<p class="hint">Demo mode is on: simulated calls ignore calling hours.</p>` : ""}
       <div class="actions" style="margin-top:16px"><button class="btn primary" type="submit">Save</button></div>
-    </form>`;
+    </form>
+    <div class="card" style="max-width:720px;margin-top:16px">
+      <h2>Answering machines</h2>
+      <p class="muted" style="margin-top:-6px">The agent listens for a moment after pickup. A long recorded greeting means a machine: the call is ended, recorded as <b>Voicemail</b>, and tried again later like an unanswered call. It never leaves your guest's name or answer on a machine.</p>
+      <label class="switch"><input type="checkbox" id="v-leave" ${st.voicemail && st.voicemail.leave_message ? "checked" : ""}> Leave a short note on voicemail</label>
+      <p class="hint">The note only says an automated call came from the organiser about the event, and that we will try again later.</p>
+    </div>`;
   const on = $("#h-on"), banner = $("#hours-banner");
   const paint = () => {
     $("#h-times").style.opacity = on.checked ? 1 : .45;
@@ -551,6 +557,10 @@ async function settings() {
     banner.textContent = inside ? `It is ${st.now_local} IST: inside the allowed window, calls can go out now.` : `It is ${st.now_local} IST: outside the allowed window, so calls will be refused until it opens.`;
   };
   on.onchange = paint; $("#h-start").oninput = paint; $("#h-end").oninput = paint; paint();
+  $("#v-leave").onchange = guard(async (e) => {
+    await api("/settings/voicemail", { method: "PUT", body: { leave_message: e.target.checked } });
+    toast(e.target.checked ? "A short note will be left on voicemail" : "Nothing will be left on voicemail");
+  });
   $("#hours-form").onsubmit = guard(async (e) => {
     e.preventDefault();
     await api("/settings/calling-hours", { method: "PUT", body: { enabled: on.checked, start: $("#h-start").value, end: $("#h-end").value } });

@@ -9,6 +9,7 @@ import csv
 import hmac
 import io
 import json
+import os
 import re
 import urllib.parse
 from datetime import datetime, timedelta, timezone
@@ -121,6 +122,10 @@ class ConvertIn(BaseModel):
     lead_ids: list[int]
 
 
+class VoicemailIn(BaseModel):
+    leave_message: bool
+
+
 class HoursIn(BaseModel):
     enabled: bool
     start: str = "09:00"
@@ -169,7 +174,7 @@ def sample_numbers(i: int) -> str:
 
 
 def build_v2(db: Db, engine: Engine, settings, require_auth) -> FastAPI:
-    app = FastAPI(title="Outreach API v2", docs_url=None, redoc_url=None, openapi_url=None,
+    app = FastAPI(title="Cadence API v2", docs_url=None, redoc_url=None, openapi_url=None,
                   dependencies=[Depends(require_auth)])
 
     @app.exception_handler(ApiErr)
@@ -345,11 +350,17 @@ def build_v2(db: Db, engine: Engine, settings, require_auth) -> FastAPI:
                                  "retry_on": ["failed", "busy", "no_answer", "voicemail", "no response"]},
                 "data_location": "Local SQLite file on the machine running this server. Call audio is processed live and never stored.",
                 "transcription": "ElevenLabs Scribe, live during the call only; transcripts are not saved",
-                "calling_hours": engine.get_hours(), "now_local": engine.local_now().strftime("%H:%M"), "timezone": "IST (UTC+5:30)"}
+                "calling_hours": engine.get_hours(), "voicemail": engine.get_voicemail(),
+                "now_local": engine.local_now().strftime("%H:%M"), "timezone": "IST (UTC+5:30)"}
 
     @app.put("/settings/calling-hours")
     def put_hours(body: HoursIn):
         engine_do(engine.set_hours, body.enabled, body.start, body.end)
+        return get_settings()
+
+    @app.put("/settings/voicemail")
+    def put_voicemail(body: VoicemailIn):
+        engine.set_voicemail(body.leave_message)
         return get_settings()
 
     @app.get("/settings/exotel-readiness")
@@ -367,7 +378,8 @@ def build_v2(db: Db, engine: Engine, settings, require_auth) -> FastAPI:
 
     @app.get("/voice/status")
     def voice_status():
-        return {"configured": False, "voice_id": "", "tts_model": "", "stt_model": "",
+        return {"configured": False, "voice_id": os.getenv("ELEVENLABS_VOICE_ID", ""),
+                "tts_model": os.getenv("ELEVENLABS_TTS_MODEL", ""), "stt_model": os.getenv("ELEVENLABS_STT_MODEL", ""),
                 "note": "The in-browser practice call is not part of this build. Real phone calls use the live voice agent."}
 
     def no_browser():

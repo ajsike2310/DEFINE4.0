@@ -20,7 +20,8 @@ from ..intelligence.intent.taxonomy import Intent, NextAction
 from ..intelligence.pipeline import IntentDecision, ResponseInput, process_response
 from ..intelligence.policies.closing_lines import CLARIFY_LINE, REPROMPT_LINE, closing_line, prompt_line
 from .audio import UtteranceSegmenter, pcm_duration_ms, pcm16_to_wav
-from .dialogue import ASK_AGAIN_LINE, SWITCH_LINE, detect_language_switch, question_topic
+from .dialogue import (ASK_AGAIN_KEYPAD, ASK_AGAIN_LINE, KEYPAD_CLARIFY, KEYPAD_REPROMPT, SWITCH_LINE, VOICEMAIL_CHECK_MS,
+                       VOICEMAIL_LONG_MS, VOICEMAIL_PROBE_MS, detect_language_switch, looks_like_voicemail, question_topic)
 
 
 @dataclass
@@ -49,10 +50,15 @@ class LiveSession:
                  barge_in: bool = False, no_speech_timeout_ms: int = 7000,
                  segmenter: UtteranceSegmenter | None = None,
                  on_end: Callable[["LiveSession"], None] | None = None,
-                 conversational: bool = False, greeting_for: Callable[[str], str | None] | None = None):
+                 conversational: bool = False, greeting_for: Callable[[str], str | None] | None = None,
+                 detect_voicemail: bool = False, keypad_hint: bool = False,
+                 voicemail_message: Callable[[str], str | None] | None = None):
         """`conversational=True` lets the caller switch language and ask known questions (venue, time, organiser, what the
         event is) without ending the call; the default keeps the original one-answer behaviour. `greeting_for(lang)`
-        returns the opening in another language, used after a switch."""
+        returns the opening in another language, used after a switch.
+        `detect_voicemail=True` listens for a moment after pickup before speaking and hangs up on an answering machine
+        (a recorded greeting is long; a person says a short "hello"); `voicemail_message(lang)` is an optional short note to
+        leave first. `keypad_hint=True` also offers the keypad (1 yes, 2 no, ...) when the caller is silent or unclear."""
         self.call_id, self.greeting = provider_call_id, greeting
         self._tts, self._stt, self._emit, self._on_end = tts, stt, emit, on_end
         self._ended = False
@@ -69,9 +75,14 @@ class LiveSession:
         self.conversational, self._greeting_for = conversational, greeting_for
         self._switches = self._info_turns = 0
         self._lang_locked = False                      # the caller explicitly chose a language: keep using it
+        self.detect_voicemail, self.keypad_hint, self._voicemail_note = detect_voicemail, keypad_hint, voicemail_message
+        self.voicemail = False
+        self._probing = detect_voicemail               # listen briefly before speaking, to tell a person from a machine
 
     # ---- transport entry points -------------------------------------------------------------
     def start(self) -> list[Action]:
+        if self._probing:
+            return []
         return [self._say(self.greeting)]
 
     def on_audio(self, pcm: bytes) -> list[Action]:
@@ -79,6 +90,8 @@ class LiveSession:
             return []
         utterances = self.seg.feed(pcm)
         clock = self.seg.elapsed_ms
+        if self._probing:
+            return self._probe(utterances, clock)
         actions: list[Action] = []
         if clock < self._speaking_until:
             if not (self.barge_in and (utterances or self.seg.speech_ms >= 300)):
@@ -98,12 +111,19 @@ class LiveSession:
     def on_dtmf(self, digit: str) -> list[Action]:
         if self.done:
             return []
+        self._probing = False
         actions: list[Action] = [Clear()]
         self._speaking_until = self.seg.elapsed_ms
+        if self.conversational and digit.strip() == "4" and self._info_turns < 3:
+            details = self._known_details()
+            if details:                               # key 4 = "more information": say what we know, then ask again
+                self._info_turns += 1
+                actions.append(self._say(f"{details} {self._ask_again(self.language)}"))
+                return actions
         decision = process_response(ResponseInput(dtmf=digit))
         if decision.intent == Intent.UNCLEAR and self._clarifications < 1:
             self._clarifications += 1
-            actions.append(self._say(prompt_line(CLARIFY_LINE, self.language)))
+            actions.append(self._say(self._clarify_line(self.language)))
             return actions
         return actions + self._finish(decision, text=None, dtmf=digit)
 
@@ -134,6 +154,8 @@ class LiveSession:
             decision = process_response(ResponseInput(audio_ref="stt-failed"))   # -> HUMAN review
             return self._finish(decision, text=None)
         self.transcript.append(("user", text))
+        if self.detect_voicemail and looks_like_voicemail(text):
+            return self._voicemail()
         if self.conversational:
             handled = self._converse(text)
             if handled is not None:
@@ -141,8 +163,60 @@ class LiveSession:
         decision = process_response(ResponseInput(text=text))
         if decision.next_action == NextAction.CLARIFY and self._clarifications < 1:
             self._clarifications += 1
-            return [self._say(prompt_line(CLARIFY_LINE, self._lang(decision)))]
+            return [self._say(self._clarify_line(self._lang(decision)))]
         return self._finish(decision, text=text)
+
+    # ---- keypad wording and what we know -----------------------------------------------------
+    def _clarify_line(self, lang: str) -> str:
+        return prompt_line(KEYPAD_CLARIFY if self.keypad_hint else CLARIFY_LINE, lang)
+
+    def _ask_again(self, lang: str) -> str:
+        table = ASK_AGAIN_KEYPAD if self.keypad_hint else ASK_AGAIN_LINE
+        return table.get(lang, table["en"])
+
+    def _known_details(self) -> str:
+        lang = self.language
+        answers = self.info_answers(lang) if callable(self.info_answers) else self.info_answers
+        parts = [answers[k].strip().rstrip(".।") for k in ("schedule", "venue", "organiser", "about") if answers.get(k)][:3]
+        stop = "।" if lang == "hi" else "."
+        return "".join(f"{p}{stop} " for p in parts).strip()
+
+    # ---- answering machines ------------------------------------------------------------------
+    def _probe(self, utterances: list[bytes], clock: int) -> list[Action]:
+        """Pickup window: a person says a short "hello" and waits; a machine plays a long recorded greeting."""
+        for utt in utterances:
+            dur = pcm_duration_ms(utt, self.rate)
+            if dur >= VOICEMAIL_LONG_MS:
+                return self._voicemail()
+            if dur >= VOICEMAIL_CHECK_MS:
+                try:
+                    text = self._stt(pcm16_to_wav(utt, self.rate))
+                except Exception:
+                    text = ""
+                if looks_like_voicemail(text):
+                    return self._voicemail()
+            return self._end_probe()
+        if self.seg.in_speech:
+            return self._end_probe() if clock >= 20000 else []     # still talking: wait for the end of it
+        return self._end_probe() if clock >= VOICEMAIL_PROBE_MS else []
+
+    def _end_probe(self) -> list[Action]:
+        self._probing = False
+        self.seg.reset()
+        return [self._say(self.greeting)]
+
+    def _voicemail(self) -> list[Action]:
+        """A machine answered. Say nothing personal; optionally leave a short note after a pause for the beep; report it."""
+        self.voicemail, self.done, self._probing = True, True, False
+        note = self._voicemail_note(self.language) if self._voicemail_note else None
+        actions: list[Action] = [Hangup()]
+        if note:
+            pcm = bytes(int(self.rate * 1.5) * 2) + self._tts(note)
+            actions = [Say(note, pcm), Hangup(delay_ms=pcm_duration_ms(pcm, self.rate))]
+        if not self._ended and self._on_end is not None:
+            self._ended = True
+            self._on_end(self)
+        return actions
 
     def _converse(self, text: str) -> list[Action] | None:
         """Conversational turns that do not end the call. Returns None when the normal flow should take over."""
@@ -152,7 +226,7 @@ class LiveSession:
                 self._switches += 1
                 self.language, self._lang_locked = lang, True
                 self._clarifications = self._reprompts = 0
-                opening = (self._greeting_for(lang) if self._greeting_for else None) or prompt_line(CLARIFY_LINE, lang)
+                opening = (self._greeting_for(lang) if self._greeting_for else None) or self._clarify_line(lang)
                 return [self._say(f"{SWITCH_LINE[lang]} {opening}")]
         if self._info_turns >= 3:
             return None
@@ -169,12 +243,12 @@ class LiveSession:
         self._info_turns += 1
         self._reprompts = 0
         stop = "।" if lang == "hi" else "."
-        return [self._say(f"{approved.strip().rstrip('.।')}{stop} {ASK_AGAIN_LINE.get(lang, ASK_AGAIN_LINE['en'])}")]
+        return [self._say(f"{approved.strip().rstrip('.।')}{stop} {self._ask_again(lang)}")]
 
     def _on_silence(self) -> list[Action]:
         if self._reprompts < 1:
             self._reprompts += 1
-            return [self._say(prompt_line(REPROMPT_LINE, self.language))]
+            return [self._say(prompt_line(KEYPAD_REPROMPT if self.keypad_hint else REPROMPT_LINE, self.language))]
         return self._finish(process_response(ResponseInput(text=None)), text=None)
 
     def _finish(self, decision: IntentDecision, text: str | None, dtmf: str | None = None) -> list[Action]:

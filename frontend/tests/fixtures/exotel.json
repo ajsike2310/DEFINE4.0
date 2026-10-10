@@ -1,0 +1,62 @@
+{
+ "ready": false,
+ "checks": [
+  {
+   "name": "EXOTEL_ACCOUNT_SID",
+   "ok": false,
+   "required": true
+  },
+  {
+   "name": "EXOTEL_API_KEY",
+   "ok": false,
+   "required": true
+  },
+  {
+   "name": "EXOTEL_API_TOKEN",
+   "ok": false,
+   "required": true
+  },
+  {
+   "name": "EXOTEL_CALLER_ID",
+   "ok": false,
+   "required": true
+  },
+  {
+   "name": "EXOTEL_FLOW_URL",
+   "ok": false,
+   "required": true
+  },
+  {
+   "name": "EXOTEL_WEBHOOK_TOKEN",
+   "ok": false,
+   "required": true
+  },
+  {
+   "name": "PUBLIC_BASE_URL",
+   "ok": false,
+   "required": true
+  },
+  {
+   "name": "EXOTEL_ALLOWED_NUMBERS",
+   "ok": false,
+   "required": false,
+   "detail": "recommended: restricts real calls to approved test numbers"
+  },
+  {
+   "name": "EXOTEL_CLARIFY_FLOW_URL",
+   "ok": false,
+   "required": false,
+   "detail": "needed for clarify-once calls on Exotel"
+  },
+  {
+   "name": "CALL_PROVIDER=exotel",
+   "ok": false,
+   "required": true
+  }
+ ],
+ "urls": {
+  "status_callback": null,
+  "passthru_response": null
+ },
+ "note": "Real operation has never been verified from this codebase; run scripts/exotel_check.py first."
+}

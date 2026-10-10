@@ -1,0 +1,22 @@
+{
+ "id": 1,
+ "event_id": 1,
+ "name": "[SAMPLE] Attendance confirmation #1",
+ "purpose": "attendance_confirmation",
+ "messages": {
+  "en": "Hello, this is Cadence calling on behalf of the DEFINE 4.0 organisers to confirm your attendance. Press 1 to confirm, 2 if you cannot attend, 3 to request a callback, 4 for more information. Press 9 to stop receiving calls.",
+  "ml": "നമസ്കാരം, DEFINE 4.0 സംഘാടകർക്ക് വേണ്ടി നിങ്ങളുടെ പങ്കാളിത്തം സ്ഥിരീകരിക്കാൻ വിളിക്കുന്നതാണ്. സ്ഥിരീകരിക്കാൻ 1 അമർത്തുക."
+ },
+ "languages": [
+  "en",
+  "ml"
+ ],
+ "status": "completed",
+ "scheduled_at": null,
+ "max_attempts": 3,
+ "require_consent": true,
+ "is_demo": true,
+ "created_at": "2026-10-09T10:55:35.627896Z",
+ "updated_at": "2026-10-09T10:55:36.255442Z",
+ "recipient_count": 11
+}

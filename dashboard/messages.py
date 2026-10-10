@@ -9,6 +9,7 @@ from datetime import date, datetime
 from datetime import time as dtime
 
 from member3.live.campaign import spoken_date, spoken_time
+from member3.live.dialogue import KEYPAD_OPTIONS, mentions_keypad
 
 LANGUAGES = {"en": "English", "hi": "Hindi", "ta": "Tamil"}
 PURPOSES = {"invite": "Invitation / RSVP", "reminder": "Reminder", "update": "Event update",
@@ -154,6 +155,17 @@ def render(template: str, variables: dict[str, str]) -> tuple[str, list[str]]:
 QUESTION = {"en": " Will you be attending?", "hi": " क्या आप शामिल होंगे?", "ta": " நீங்கள் கலந்துகொள்வீர்களா?"}
 
 
+def keypad_note(campaign: dict, text: str, lang: str) -> str:
+    """Question calls: make sure there is a question to answer, and tell the person they can also use the keypad."""
+    if campaign.get("purpose") not in ASKS_QUESTION:
+        return text
+    if "?" not in text:
+        text += QUESTION[lang]          # the agent needs a question to listen for an answer to
+    if not mentions_keypad(text):
+        text += " " + KEYPAD_OPTIONS[lang]
+    return text
+
+
 def compose(campaign: dict, event: dict, participant: dict) -> tuple[str, str, list[str]]:
     """-> (spoken text, language, missing variables) for one person in one campaign."""
     lang = participant.get("language") or campaign.get("language") or "en"
@@ -168,14 +180,10 @@ def compose(campaign: dict, event: dict, participant: dict) -> tuple[str, str, l
         if lang not in per_lang:                           # speak in a language the campaign actually has a script for
             lang = campaign.get("language") if campaign.get("language") in per_lang else next(iter(per_lang))
         text, missing = render(own or per_lang[lang], variables_for(event, participant, lang))
-        if campaign.get("purpose") in ASKS_QUESTION and "?" not in text:
-            text += QUESTION[lang]
-        return text, lang, missing
+        return keypad_note(campaign, text, lang), lang, missing
     camp_lang = campaign.get("language") or "en"
     if lang != camp_lang and template.strip() == default_template(event.get("type", "custom"), campaign.get("purpose", "invite"), camp_lang):
         # the organiser kept the suggested script, so each person gets it in their own language
         template = default_template(event.get("type", "custom"), campaign.get("purpose", "invite"), lang)
     text, missing = render(own or template, variables_for(event, participant, lang))
-    if campaign.get("purpose") in ASKS_QUESTION and "?" not in text:
-        text += QUESTION[lang]          # the agent needs a question to listen for an answer to
-    return text, lang, missing
+    return keypad_note(campaign, text, lang), lang, missing

@@ -1,4 +1,4 @@
-# Campaign dashboard
+# Cadence dashboard
 
 Create an event, add people, press one button: each person gets an automated call with their own message.
 
@@ -8,6 +8,23 @@ Create an event, add people, press one button: each person gets an automated cal
 agent in `member3/live` (the dashboard embeds `LiveService`, so a call's result lands in the database directly). Run **one
 worker**, serve over HTTPS, and set `DASHBOARD_TOKEN` before exposing it. Real dialling is limited to `EXOTEL_ALLOWED_NUMBERS`
 while that is set, and to `CALL_WINDOW` hours.
+
+## Two interfaces, one backend
+* **Original dashboard**: `http://127.0.0.1:8002/` (plain HTML/JS, API under `/api`). Unchanged.
+* **React app** (`frontend/`): `http://127.0.0.1:8002/app/`. It talks to a compatible API under `/api/v2` (`dashboard/v2.py`)
+  that sits on the same database and call engine, so both show the same events, campaigns, people and results.
+  Build it once, then it is served by the same server:
+
+      cd frontend && npm install && npm run build
+
+  For frontend development: `npm run dev` (http://localhost:5173/app/, proxies `/api` to the dashboard on 8002).
+  `VITE_API_BASE` changes the API prefix (default `/api/v2`), `VITE_API_TARGET` the proxy target.
+* Differences in the React app: Hindi and Tamil are offered next to English (Malayalam is not supported by the call agent),
+  per-person personal messages (`{first_name}`, `{event}`, `{venue}`, `{date}`, `{time}`), automatic retry settings on a
+  campaign, and a *Calling hours* section in Settings. The in-browser practice call is not part of this build
+  (real calls use the live voice agent). "Sample data" campaigns are always simulated and can never ring a real phone.
+* Event facts the agent may state (Events page: venue, schedule, ...) are the "approved information": a question about
+  anything left blank goes to the follow-up queue instead of being guessed.
 
 ## Flow
 1. **Events**: webinar, hackathon, seminar, workshop, conference, clinic appointment, school meeting, payment reminder, other.
@@ -45,20 +62,31 @@ who gave an unclear answer are *not* re-dialled; they get a follow-up task inste
 last attempt. The scheduler checks every 20 seconds (`SCHEDULER_INTERVAL_S`).
 
 ## On the call (real calls)
-The dashboard runs the live agent in conversational mode (`LiveService(conversational=True)`):
+The dashboard runs the live agent with conversation, keypad and answering-machine handling switched on:
+* **Voice or keypad, both offered.** Every question call (invitation, reminder, attendance confirmation) ends with the keypad
+  options: *1 confirm, 2 cannot attend, 3 call back, 4 more information, 9 stop calls* (unless you already wrote them in the
+  message). If the person is silent the agent says it again, and an unclear answer or an unknown key re-asks once with
+  "press 1 for yes and 2 for no". A key press works at any moment, even while the agent is still talking or listening.
+  Key 4 reads out what is known (date/time, venue, organiser, what the event is about) and asks again.
+* **Answering machines.** After pickup the agent listens for about 1.5 s before speaking. A person says a short "hello"; a recorded
+  greeting is long (7 s or more), or contains phrases such as "leave a message after the beep" (English, Hindi, Tamil). The agent
+  then hangs up without saying anything personal. The call is recorded as **Voicemail**, never as an answer or an RSVP, and is
+  retried after the campaign's retry interval like an unanswered call; after the last attempt a follow-up task is created.
+  *Settings > Answering machines* can switch on a short neutral note ("an automated call from <organiser> about <event>, we will try
+  again later"), spoken after a pause for the beep. It never contains the guest's name or any answer. Off by default.
 * **Language switch**: "speak Hindi", "Tamil please", "हिंदी में बोलिए", "தமிழில் பேசுங்கள்" switches the rest of the call to
   English, Hindi or Tamil, re-asks the question in that language and closes in it.
 * **Questions it can answer** (only from the organiser's data, never improvised): venue, date/time, who is organising, and
-  what the event is about (the event's *About this event* text). It answers, asks "Will you be attending?" again, and carries
-  on (up to three questions per call). Anything else it does not know goes to a person as a follow-up task.
-* A plain yes / no / opt-out still ends the call as before. The plain `run_live` dev server is unchanged (not conversational).
-* Hindi and Tamil lines are not native-reviewed.
+  what the event is about (the event's *About this event* text). It answers, asks again, and carries on (up to three
+  questions per call). Anything else it does not know goes to a person as a follow-up task.
+* A plain yes / no / opt-out still ends the call as before. The plain `run_live` dev server is unchanged (none of this is on there).
+* Hindi and Tamil lines are not native-reviewed. Machine detection is a timing and phrase heuristic, not Exotel's own
+  answering-machine detection (which is not wired up), so an unusual machine greeting may be mistaken for a person and a
+  very slow talker for a machine; the default is to treat doubtful cases as a person.
 
 ## Behaviour worth knowing
 * "Non-responder" = no answer, busy, failed, voicemail, or picked up without a clear answer; capped by max attempts.
 * Opt-outs ("stop calling me" / key 9) are stored and the person is never dialled again. **Erase** removes a person and their records.
 * Numbers are normalised to E.164 (+91 assumed for 10-digit numbers); duplicates per event are rejected.
-* Voicemail is only recognised in demo mode: Exotel's answering-machine detection is not wired up, so a call answered by a
-  machine appears as "Picked up, no answer" and is retried.
 * Hindi and Tamil wording is not native-reviewed (`member3/NATIVE_REVIEW.md`).
 * Only decisions are stored; audio is processed live and discarded, and transcripts are never saved.

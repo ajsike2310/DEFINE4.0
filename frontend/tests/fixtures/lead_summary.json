@@ -1,0 +1,51 @@
+{
+ "total": 11,
+ "by_status": {
+  "new": 9,
+  "contacted": 1,
+  "qualified": 0,
+  "converted": 0,
+  "lost": 1
+ },
+ "consented": 9,
+ "consent_rate": 0.8182,
+ "conversion_rate": 0.0,
+ "ready_to_convert": 9,
+ "by_source": [
+  {
+   "source": "registration_form",
+   "leads": 4,
+   "converted": 0,
+   "consented": 3,
+   "conversion_rate": 0.0
+  },
+  {
+   "source": "csv_import",
+   "leads": 3,
+   "converted": 0,
+   "consented": 2,
+   "conversion_rate": 0.0
+  },
+  {
+   "source": "referral",
+   "leads": 2,
+   "converted": 0,
+   "consented": 2,
+   "conversion_rate": 0.0
+  },
+  {
+   "source": "walk_in",
+   "leads": 1,
+   "converted": 0,
+   "consented": 1,
+   "conversion_rate": 0.0
+  },
+  {
+   "source": "manual",
+   "leads": 1,
+   "converted": 0,
+   "consented": 1,
+   "conversion_rate": 0.0
+  }
+ ]
+}

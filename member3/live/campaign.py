@@ -14,6 +14,8 @@ from datetime import date, datetime
 from datetime import time as dtime
 from typing import Protocol
 
+from .dialogue import KEYPAD_OPTIONS
+
 _MONTHS = {
     "hi": ["जनवरी", "फ़रवरी", "मार्च", "अप्रैल", "मई", "जून", "जुलाई", "अगस्त", "सितंबर", "अक्टूबर", "नवंबर", "दिसंबर"],
     "ta": ["ஜனவரி", "பிப்ரவரி", "மார்ச்", "ஏப்ரல்", "மே", "ஜூன்", "ஜூலை", "ஆகஸ்ட்", "செப்டம்பர்", "அக்டோபர்",
@@ -71,6 +73,7 @@ class CampaignInfo:
     organiser: str = ""
     language: str = "en"                       # language of the greeting and fallback for agent lines: en | hi | ta | ml
     greeting_override: str | None = None       # organiser-approved full script, used instead of the template
+    keypad: bool = False                       # also offer the keypad (1 yes, 2 no, 3 call back, ...) in the built-in greeting
     description: str = ""                      # one or two organiser-written sentences about the event (answers "what is this?")
 
     def when(self, lang: str = "en") -> str:
@@ -122,6 +125,13 @@ class CallContext:
 
 
 def build_greeting(c: CampaignInfo, participant_name: str = "") -> str:
+    text = _greeting(c, participant_name)
+    if c.keypad and not c.greeting_override:
+        text += " " + KEYPAD_OPTIONS[c.language if c.language in ("hi", "ta") else "en"]
+    return text
+
+
+def _greeting(c: CampaignInfo, participant_name: str = "") -> str:
     if c.greeting_override:
         return c.greeting_override.strip()
     first = participant_name.strip().split(" ")[0] if participant_name.strip() else ""

@@ -47,3 +47,10 @@ Test any sentence through voice -> Scribe -> rules with `python -m scripts.check
 data can answer (`CampaignInfo.info_answers`: venue, schedule, organiser, about from `CampaignInfo.description`) without ending
 the call; the agent answers, asks the RSVP question again, and keeps listening (max 3 questions). Default is `False`, which keeps
 the one-answer behaviour above. Helpers live in `live/dialogue.py`.
+
+## Answering machines and keypad (opt-in)
+`LiveService(..., detect_voicemail=True, keypad_hint=True, leave_voicemail=lambda: bool)`. With `detect_voicemail` the agent listens
+~1.5 s after pickup before speaking; a long recorded greeting (>= 7 s) or machine phrases (`dialogue.looks_like_voicemail`) end the
+call and the sink receives `call_outcome="voicemail"` (attendance `no_response`, no decision). `leave_voicemail()` true plays a short
+note naming only the organiser and event. `keypad_hint` makes the silence prompt, the clarification and the "ask again" lines mention the
+keys (1 yes, 2 no, 3 call back, 4 info, 9 stop); `CampaignInfo.keypad=True` adds the key list to the built-in greeting. Defaults are off.

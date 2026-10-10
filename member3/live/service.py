@@ -21,6 +21,7 @@ from ..integrations.elevenlabs.client import ElevenLabsClient
 from ..intelligence.transcription.elevenlabs_stt import ElevenLabsTranscriber
 from .campaign import CallContext, CallContextSource, InMemoryCallRegistry, build_greeting
 from .config import LiveSettings
+from .dialogue import voicemail_message
 from .exotel_ws import StartInfo, create_router
 from .results import ResultSink, build_result
 from .session import LiveSession
@@ -32,10 +33,12 @@ log = logging.getLogger("member3.live")
 class LiveService:
     def __init__(self, settings: LiveSettings, sink: ResultSink, *, source: CallContextSource | None = None,
                  tts: Callable[[str, int], bytes] | None = None, stt: Callable[[bytes], str] | None = None,
-                 on_event: Callable[[ProviderEvent], None] | None = None, conversational: bool = False):
+                 on_event: Callable[[ProviderEvent], None] | None = None, conversational: bool = False,
+                 detect_voicemail: bool = False, keypad_hint: bool = False, leave_voicemail: Callable[[], bool] | None = None):
         """`tts(text, sample_rate) -> PCM` and `stt(wav_bytes) -> text` default to ElevenLabs; tests inject fakes.
         `on_event` also receives the legacy ProviderEvent(kind="response") if the backend still wants it."""
         self.settings, self.sink, self.on_event, self.conversational = settings, sink, on_event, conversational
+        self.detect_voicemail, self.keypad_hint, self.leave_voicemail = detect_voicemail, keypad_hint, leave_voicemail
         if tts is None or stt is None:
             eleven = ElevenLabsClient(settings.elevenlabs_api_key, voice_id=settings.elevenlabs_voice_id,
                                       tts_model=settings.elevenlabs_tts_model, stt_model=settings.elevenlabs_stt_model)
@@ -71,6 +74,8 @@ class LiveService:
 
     def _deliver(self, ctx: CallContext, session: LiveSession | None, outcome: str) -> None:
         try:
+            if session is not None and getattr(session, "voicemail", False):
+                outcome = "voicemail"            # an answering machine, not a person: never counted as an answer
             self.sink(build_result(ctx, session.decision if session else None, call_outcome=outcome))
         except Exception:                      # a sink bug must never take the live call down
             log.exception("result sink failed for call %s", ctx.provider_call_id)
@@ -93,6 +98,9 @@ class LiveService:
             language=ctx.campaign.language, info_answers=ctx.campaign.info_answers,
             barge_in=self.settings.barge_in, no_speech_timeout_ms=self.settings.no_speech_timeout_ms,
             on_end=lambda sess: self._deliver(ctx, sess, "hung_up"),
-            conversational=self.conversational, greeting_for=lambda lang: self._greeting_in(ctx, lang))
+            conversational=self.conversational, greeting_for=lambda lang: self._greeting_in(ctx, lang),
+            detect_voicemail=self.detect_voicemail, keypad_hint=self.keypad_hint,
+            voicemail_message=((lambda lang: voicemail_message(ctx.campaign.name, ctx.campaign.organiser, lang))
+                               if self.leave_voicemail and self.leave_voicemail() else None))
         holder["s"] = s
         return s

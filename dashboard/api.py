@@ -410,7 +410,7 @@ def build_router(db: Db, engine: Engine, settings, require_auth) -> APIRouter:
     @r.get("/settings")
     def get_settings():
         h = engine.get_hours()
-        return {"calling_hours": h, "now_local": engine.local_now().strftime("%H:%M"), "timezone": "IST (UTC+5:30)",
+        return {"voicemail": engine.get_voicemail(), "calling_hours": h, "now_local": engine.local_now().strftime("%H:%M"), "timezone": "IST (UTC+5:30)",
                 "simulated": engine.provider.is_simulated,
                 "allowed_to_call_now": (not h["enabled"]) or h["start"] <= engine.local_now().strftime("%H:%M") <= h["end"]}
 
@@ -420,6 +420,11 @@ def build_router(db: Db, engine: Engine, settings, require_auth) -> APIRouter:
             engine.set_hours(body.enabled, body.start, body.end)
         except CampaignError as exc:
             raise HTTPException(422, str(exc))
+        return get_settings()
+
+    @r.put("/settings/voicemail")
+    def put_voicemail(body: VoicemailIn):
+        engine.set_voicemail(body.leave_message)
         return get_settings()
 
     # ------------------------------------------------------------------ follow-up tasks
@@ -492,6 +497,10 @@ class HoursIn(BaseModel):
     enabled: bool
     start: str = "09:00"
     end: str = "21:00"
+
+
+class VoicemailIn(BaseModel):
+    leave_message: bool
 
 
 class TaskIn(BaseModel):

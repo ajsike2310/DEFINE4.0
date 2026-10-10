@@ -111,6 +111,19 @@ class Engine:
                   (json.dumps({"enabled": enabled, "start": start, "end": end}),))
         return self.get_hours()
 
+    def get_voicemail(self) -> dict:
+        """{leave_message}: whether to leave a short neutral note (organiser and event only) on an answering machine."""
+        row = self.db.one("SELECT value FROM settings WHERE key='voicemail'")
+        try:
+            return {"leave_message": bool(json.loads(row["value"]).get("leave_message"))} if row else {"leave_message": False}
+        except ValueError:
+            return {"leave_message": False}
+
+    def set_voicemail(self, leave_message: bool) -> dict:
+        self.db.x("INSERT INTO settings(key, value) VALUES('voicemail', ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                  (json.dumps({"leave_message": bool(leave_message)}),))
+        return self.get_voicemail()
+
     def local_now(self) -> datetime:
         return datetime.now(timezone.utc) + timedelta(minutes=self.settings.call_timezone_offset_min)
 
@@ -272,7 +285,7 @@ class Engine:
                 campaign=CampaignInfo(
                     name=event["name"], venue=event["venue"] or ("online" if event["mode"] == "online" else ""),
                     event_date=_parse_date(event["event_date"]), event_time=_parse_time(event["event_time"]),
-                    organiser=event["organiser"], description=event["description"] or "",
+                    organiser=event["organiser"], description=event["description"] or "", keypad=True,
                     language=lang, greeting_override=message)))
 
     def _apply_simulated(self, call_id, attempt_id, camp, person, res) -> None:
@@ -300,6 +313,12 @@ class Engine:
             return
         call = self.db.one("SELECT * FROM calls WHERE id=?", (att["call_id"],))
         if call["last_event_id"] == r.event_id:
+            return
+        if r.call_outcome == "voicemail":                  # an answering machine picked up: not an answer, retried like no-answer
+            self._finish_attempt(att["id"], "voicemail")
+            self.db.update("calls", call["id"], status="voicemail", attendance=None, needs_review=0, last_event_id=r.event_id,
+                           updated_at=now())
+            self._followup(call["id"])
             return
         self._finish_attempt(att["id"], "completed")
         self.db.update(

@@ -1,0 +1,46 @@
+[
+ {
+  "id": 4,
+  "campaign_id": 1,
+  "recipient_id": 11,
+  "action_type": "human_review",
+  "status": "pending",
+  "scheduled_at": null,
+  "note": "clarification attempted; still unclear - needs a person. hedging language; still unclear after clarification question",
+  "created_at": "2026-10-09T10:55:36.086960Z",
+  "completed_at": null
+ },
+ {
+  "id": 3,
+  "campaign_id": 1,
+  "recipient_id": 10,
+  "action_type": "send_information",
+  "status": "pending",
+  "scheduled_at": null,
+  "note": "asked about venue. Approved answer: MBCET, Thiruvananthapuram",
+  "created_at": "2026-10-09T10:55:36.037497Z",
+  "completed_at": null
+ },
+ {
+  "id": 2,
+  "campaign_id": 1,
+  "recipient_id": 5,
+  "action_type": "human_review",
+  "status": "completed",
+  "scheduled_at": null,
+  "note": "resolved by clarification call: confirm",
+  "created_at": "2026-10-09T10:55:35.892082Z",
+  "completed_at": "2026-10-09T10:55:37.336059Z"
+ },
+ {
+  "id": 1,
+  "campaign_id": 1,
+  "recipient_id": 4,
+  "action_type": "callback",
+  "status": "pending",
+  "scheduled_at": null,
+  "note": "participant said: after 5 PM (date not confirmed); callback time not reliably stated; follow-up left pending",
+  "created_at": "2026-10-09T10:55:35.841909Z",
+  "completed_at": null
+ }
+]

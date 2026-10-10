@@ -42,13 +42,14 @@ def create_app(settings: Settings | None = None, provider=None, start_reconciler
                 log.warning("Exotel rejected the request: HTTP %s %s", resp.status_code, provider.last_error_detail)
         provider.client = httpx.Client(timeout=15, event_hooks={"response": [remember_error]})
     engine = Engine(db, provider, settings)
-    app = FastAPI(title="Outreach Dashboard", docs_url=None, redoc_url=None)
+    app = FastAPI(title="Cadence Dashboard", docs_url=None, redoc_url=None)
 
     if not provider.is_simulated:
         # Real calls: embed the live voice agent. Results flow straight into the engine, no HTTP hop.
         from member3.live.config import LiveSettings
         from member3.live.service import LiveService
-        live = LiveService(LiveSettings.from_env(), sink=engine.on_result, conversational=True)
+        live = LiveService(LiveSettings.from_env(), sink=engine.on_result, conversational=True, detect_voicemail=True, keypad_hint=True,
+                           leave_voicemail=lambda: engine.get_voicemail()["leave_message"])
         engine.live = live
         # Exotel only needs the audio WebSocket. It gets its own port so the tunnel can expose just that, and the
         # dashboard (contact lists, results) is never reachable from the internet.

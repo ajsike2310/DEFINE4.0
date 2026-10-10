@@ -126,7 +126,7 @@ def test_per_language_scripts_follow_the_person(client):
         client.post(f"{V}/campaigns/{camp['id']}/recipients", json={"name": n, "phone": ph, "preferred_language": lang, "consent_status": "granted"})
     client.post(f"{V}/campaigns/{camp['id']}/start"); wait_campaign(client, camp["id"])
     msgs = {r["name"]: r["message"] for r in client.app.state.db.q("SELECT p.name, c.message FROM calls c JOIN participants p ON p.id=c.participant_id")}
-    assert msgs["Eve"] == "Hello Eve, will you come?" and msgs["Tam"].startswith("வணக்கம் Tam")
+    assert msgs["Eve"].startswith("Hello Eve, will you come? You can also use your keypad: press 1") and msgs["Tam"].startswith("வணக்கம் Tam")
 
 
 def test_csv_import_without_the_multipart_package(client):
