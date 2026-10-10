@@ -71,6 +71,7 @@ class CampaignInfo:
     organiser: str = ""
     language: str = "en"                       # language of the greeting and fallback for agent lines: en | hi | ta | ml
     greeting_override: str | None = None       # organiser-approved full script, used instead of the template
+    description: str = ""                      # one or two organiser-written sentences about the event (answers "what is this?")
 
     def when(self, lang: str = "en") -> str:
         d, tm = spoken_date(self.event_date, lang), spoken_time(self.event_time, lang)
@@ -101,6 +102,12 @@ class CampaignInfo:
                 out["venue"] = f"The event will take place at {self.venue}"
             if when:
                 out["schedule"] = f"The event is {'on' if self.event_date else 'at'} {when}"
+        if self.organiser:
+            out["organiser"] = {"hi": f"यह कार्यक्रम {self.organiser} आयोजित कर रहे हैं",
+                                "ta": f"இந்த நிகழ்ச்சியை {self.organiser} நடத்துகிறார்கள்"}.get(
+                lang, f"This event is organised by {self.organiser}")
+        if self.description.strip():
+            out["about"] = self.description.strip()
         return out
 
 

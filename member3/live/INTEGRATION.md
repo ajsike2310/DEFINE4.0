@@ -41,3 +41,9 @@ caller used (detected by script): goodbyes, the clarification question and "wher
 Hindi and Tamil. Malayalam rules and lines exist but Malayalam greetings do not, and ElevenLabs Multilingual v2 cannot
 speak Malayalam (try `eleven_v3`). Hindi/Tamil wording is not native-reviewed: see `member3/NATIVE_REVIEW.md`.
 Test any sentence through voice -> Scribe -> rules with `python -m scripts.check_languages "<text>" <intent>`.
+
+## Conversational mode (opt-in)
+`LiveService(settings, sink, conversational=True)` lets the caller switch language ("speak Hindi") and ask what the organiser's
+data can answer (`CampaignInfo.info_answers`: venue, schedule, organiser, about from `CampaignInfo.description`) without ending
+the call; the agent answers, asks the RSVP question again, and keeps listening (max 3 questions). Default is `False`, which keeps
+the one-answer behaviour above. Helpers live in `live/dialogue.py`.

@@ -6,3 +6,6 @@ __pycache__/
 scripts/_tts_check.wav
 logs/
 scripts/_lang_check/
+
+data/
+.env.bak*

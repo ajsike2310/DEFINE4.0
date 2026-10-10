@@ -20,6 +20,7 @@ from ..intelligence.intent.taxonomy import Intent, NextAction
 from ..intelligence.pipeline import IntentDecision, ResponseInput, process_response
 from ..intelligence.policies.closing_lines import CLARIFY_LINE, REPROMPT_LINE, closing_line, prompt_line
 from .audio import UtteranceSegmenter, pcm_duration_ms, pcm16_to_wav
+from .dialogue import ASK_AGAIN_LINE, SWITCH_LINE, detect_language_switch, question_topic
 
 
 @dataclass
@@ -47,7 +48,11 @@ class LiveSession:
                  sample_rate: int = 8000, language: str = "en", info_answers: "dict[str, str] | Callable[[str], dict[str, str]] | None" = None,
                  barge_in: bool = False, no_speech_timeout_ms: int = 7000,
                  segmenter: UtteranceSegmenter | None = None,
-                 on_end: Callable[["LiveSession"], None] | None = None):
+                 on_end: Callable[["LiveSession"], None] | None = None,
+                 conversational: bool = False, greeting_for: Callable[[str], str | None] | None = None):
+        """`conversational=True` lets the caller switch language and ask known questions (venue, time, organiser, what the
+        event is) without ending the call; the default keeps the original one-answer behaviour. `greeting_for(lang)`
+        returns the opening in another language, used after a switch."""
         self.call_id, self.greeting = provider_call_id, greeting
         self._tts, self._stt, self._emit, self._on_end = tts, stt, emit, on_end
         self._ended = False
@@ -61,6 +66,9 @@ class LiveSession:
         self._speaking_until = 0
         self._clarifications = 0
         self._reprompts = 0
+        self.conversational, self._greeting_for = conversational, greeting_for
+        self._switches = self._info_turns = 0
+        self._lang_locked = False                      # the caller explicitly chose a language: keep using it
 
     # ---- transport entry points -------------------------------------------------------------
     def start(self) -> list[Action]:
@@ -115,6 +123,8 @@ class LiveSession:
         return Say(text, pcm)
 
     def _lang(self, decision: IntentDecision) -> str:
+        if self._lang_locked:
+            return self.language
         return decision.language if decision.language in ("en", "ml", "hi", "ta") else self.language
 
     def _on_utterance(self, pcm: bytes) -> list[Action]:
@@ -124,11 +134,42 @@ class LiveSession:
             decision = process_response(ResponseInput(audio_ref="stt-failed"))   # -> HUMAN review
             return self._finish(decision, text=None)
         self.transcript.append(("user", text))
+        if self.conversational:
+            handled = self._converse(text)
+            if handled is not None:
+                return handled
         decision = process_response(ResponseInput(text=text))
         if decision.next_action == NextAction.CLARIFY and self._clarifications < 1:
             self._clarifications += 1
             return [self._say(prompt_line(CLARIFY_LINE, self._lang(decision)))]
         return self._finish(decision, text=text)
+
+    def _converse(self, text: str) -> list[Action] | None:
+        """Conversational turns that do not end the call. Returns None when the normal flow should take over."""
+        if self._switches < 2:
+            lang = detect_language_switch(text, self.language)
+            if lang:
+                self._switches += 1
+                self.language, self._lang_locked = lang, True
+                self._clarifications = self._reprompts = 0
+                opening = (self._greeting_for(lang) if self._greeting_for else None) or prompt_line(CLARIFY_LINE, lang)
+                return [self._say(f"{SWITCH_LINE[lang]} {opening}")]
+        if self._info_turns >= 3:
+            return None
+        decision = process_response(ResponseInput(text=text))
+        if decision.intent not in (Intent.INFO, Intent.UNCLEAR):
+            return None                                # a clear yes / no / opt-out always wins over a question
+        topic = decision.info_topic if decision.intent == Intent.INFO else None
+        topic = topic or question_topic(text)
+        lang = self._lang(decision)
+        answers = self.info_answers(lang) if callable(self.info_answers) else self.info_answers
+        approved = answers.get(topic or "")
+        if not approved:
+            return None                                # unknown question: the existing hand-over to a human applies
+        self._info_turns += 1
+        self._reprompts = 0
+        stop = "।" if lang == "hi" else "."
+        return [self._say(f"{approved.strip().rstrip('.।')}{stop} {ASK_AGAIN_LINE.get(lang, ASK_AGAIN_LINE['en'])}")]
 
     def _on_silence(self) -> list[Action]:
         if self._reprompts < 1:

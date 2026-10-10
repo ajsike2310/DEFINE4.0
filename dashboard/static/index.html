@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Outreach Calls</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232f5bea' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+<div class="shell">
+  <aside class="side">
+    <div class="brand"><span class="logo" aria-hidden="true">☎</span><span>Outreach<br><small>Automated calls</small></span></div>
+    <nav>
+      <a href="#/" data-nav="overview">Overview</a>
+      <a href="#/events" data-nav="events">Events</a>
+      <a href="#/followups" data-nav="followups">Follow-ups <span id="task-count" class="count" hidden></span></a>
+      <a href="#/settings" data-nav="settings">Settings</a>
+    </nav>
+    <div class="side-foot">
+      <div id="mode-badge" class="badge"></div>
+      <p class="muted small">Contact lists stay on this server. Call audio is processed live and never stored; only each person's answer is recorded.</p>
+    </div>
+  </aside>
+  <main id="app" class="main" aria-live="polite"></main>
+</div>
+<div id="modal-root"></div>
+<div id="toasts" class="toasts" role="status"></div>
+<script src="/static/app.js"></script>
+</body>
+</html>

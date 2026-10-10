@@ -11,6 +11,7 @@ When the call ends the sink receives one `CallResult` (participant, campaign, at
 Run a single worker: the default registry lives in process memory.
 """
 import logging
+from dataclasses import replace
 from collections.abc import Callable
 
 from fastapi import APIRouter
@@ -31,10 +32,10 @@ log = logging.getLogger("member3.live")
 class LiveService:
     def __init__(self, settings: LiveSettings, sink: ResultSink, *, source: CallContextSource | None = None,
                  tts: Callable[[str, int], bytes] | None = None, stt: Callable[[bytes], str] | None = None,
-                 on_event: Callable[[ProviderEvent], None] | None = None):
+                 on_event: Callable[[ProviderEvent], None] | None = None, conversational: bool = False):
         """`tts(text, sample_rate) -> PCM` and `stt(wav_bytes) -> text` default to ElevenLabs; tests inject fakes.
         `on_event` also receives the legacy ProviderEvent(kind="response") if the backend still wants it."""
-        self.settings, self.sink, self.on_event = settings, sink, on_event
+        self.settings, self.sink, self.on_event, self.conversational = settings, sink, on_event, conversational
         if tts is None or stt is None:
             eleven = ElevenLabsClient(settings.elevenlabs_api_key, voice_id=settings.elevenlabs_voice_id,
                                       tts_model=settings.elevenlabs_tts_model, stt_model=settings.elevenlabs_stt_model)
@@ -58,6 +59,12 @@ class LiveService:
             log.warning("TRANSCRIPT (dev only, personal data): %r", text)
             return text
         return run
+
+    @staticmethod
+    def _greeting_in(ctx: CallContext, lang: str) -> str:
+        """The standard opening in another language, built from the campaign's own data (the organiser's custom wording
+        is in the original language, so after a switch the standard template is used)."""
+        return build_greeting(replace(ctx.campaign, language=lang, greeting_override=None), ctx.participant_name)
 
     def _prewarm(self, ctx: CallContext) -> None:
         self.tts_cache.prewarm([build_greeting(ctx.campaign, ctx.participant_name)], self.settings.default_sample_rate)
@@ -85,6 +92,7 @@ class LiveService:
             tts=lambda text: self.tts_cache.speak(text, rate), stt=self._stt, emit=emit, sample_rate=rate,
             language=ctx.campaign.language, info_answers=ctx.campaign.info_answers,
             barge_in=self.settings.barge_in, no_speech_timeout_ms=self.settings.no_speech_timeout_ms,
-            on_end=lambda sess: self._deliver(ctx, sess, "hung_up"))
+            on_end=lambda sess: self._deliver(ctx, sess, "hung_up"),
+            conversational=self.conversational, greeting_for=lambda lang: self._greeting_in(ctx, lang))
         holder["s"] = s
         return s
