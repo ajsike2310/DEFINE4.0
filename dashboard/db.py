@@ -44,6 +44,16 @@ CREATE TABLE IF NOT EXISTS tasks (
   kind TEXT NOT NULL, reason TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'open', note TEXT DEFAULT '',
   created_at TEXT NOT NULL, done_at TEXT);
 CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
+CREATE TABLE IF NOT EXISTS intents (
+  id INTEGER PRIMARY KEY, call_attempt_id INTEGER NOT NULL REFERENCES attempts(id) ON DELETE CASCADE,
+  call_id INTEGER NOT NULL REFERENCES calls(id) ON DELETE CASCADE, campaign_id INTEGER NOT NULL,
+  intent TEXT NOT NULL, score REAL NOT NULL DEFAULT 0, method TEXT, detected_language TEXT, notes TEXT DEFAULT '[]',
+  needs_review INTEGER NOT NULL DEFAULT 0, next_action TEXT, created_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS leads (
+  id INTEGER PRIMARY KEY, event_id INTEGER NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+  name TEXT NOT NULL, phone TEXT NOT NULL, email TEXT, source TEXT NOT NULL DEFAULT 'manual', interest TEXT,
+  preferred_language TEXT, consent_status TEXT NOT NULL DEFAULT 'unknown', status TEXT NOT NULL DEFAULT 'new',
+  notes TEXT DEFAULT '', recipient_id INTEGER, campaign_id INTEGER, is_demo INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS idx_calls_campaign ON calls(campaign_id);
 CREATE INDEX IF NOT EXISTS idx_attempts_pcid ON attempts(provider_call_id);
 """
@@ -64,7 +74,14 @@ class Db:
             self._c.executescript(SCHEMA)
             cols = {r["name"] for r in self._c.execute("PRAGMA table_info(calls)")}
             for tbl, name, ddl in (("calls", "next_attempt_at", "TEXT"), ("campaigns", "auto_retry", "INTEGER NOT NULL DEFAULT 1"),
-                                   ("campaigns", "retry_interval_min", "INTEGER NOT NULL DEFAULT 30")):
+                                   ("campaigns", "retry_interval_min", "INTEGER NOT NULL DEFAULT 30"),
+                                   ("events", "approved_info", "TEXT DEFAULT '{}'"), ("events", "organizer_contact", "TEXT"),
+                                   ("events", "is_demo", "INTEGER NOT NULL DEFAULT 0"),
+                                   ("participants", "external_ref", "TEXT"), ("participants", "consent_status", "TEXT DEFAULT ''"),
+                                   ("participants", "is_demo", "INTEGER NOT NULL DEFAULT 0"),
+                                   ("campaigns", "messages", "TEXT DEFAULT '{}'"), ("campaigns", "require_consent", "INTEGER NOT NULL DEFAULT 1"),
+                                   ("campaigns", "scheduled_at", "TEXT"), ("campaigns", "is_demo", "INTEGER NOT NULL DEFAULT 0"),
+                                   ("tasks", "scheduled_at", "TEXT")):
                 have = {r["name"] for r in self._c.execute(f"PRAGMA table_info({tbl})")}
                 if name not in have:                        # databases created before automatic retries
                     self._c.execute(f"ALTER TABLE {tbl} ADD COLUMN {name} {ddl}")

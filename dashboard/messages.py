@@ -13,7 +13,7 @@ from member3.live.campaign import spoken_date, spoken_time
 LANGUAGES = {"en": "English", "hi": "Hindi", "ta": "Tamil"}
 PURPOSES = {"invite": "Invitation / RSVP", "reminder": "Reminder", "update": "Event update",
             "thanks": "Thank-you / follow-up"}
-ASKS_QUESTION = {"invite", "reminder"}          # these end by asking the person to answer yes / no
+ASKS_QUESTION = {"invite", "reminder", "attendance_confirmation"}          # these end by asking the person to answer yes / no
 
 EVENT_TYPES = {
     "webinar": {"label": "Webinar", "mode": "online", "kind": "generic"},
@@ -160,6 +160,17 @@ def compose(campaign: dict, event: dict, participant: dict) -> tuple[str, str, l
     lang = lang if lang in LANGUAGES else "en"
     own = (participant.get("custom_message") or "").strip()
     template = campaign["template"]
+    per_lang = campaign.get("messages")
+    if isinstance(per_lang, str):
+        from .db import loads
+        per_lang = loads(per_lang)
+    if per_lang:                                           # scripts written per language (React app): pick the person's
+        if lang not in per_lang:                           # speak in a language the campaign actually has a script for
+            lang = campaign.get("language") if campaign.get("language") in per_lang else next(iter(per_lang))
+        text, missing = render(own or per_lang[lang], variables_for(event, participant, lang))
+        if campaign.get("purpose") in ASKS_QUESTION and "?" not in text:
+            text += QUESTION[lang]
+        return text, lang, missing
     camp_lang = campaign.get("language") or "en"
     if lang != camp_lang and template.strip() == default_template(event.get("type", "custom"), campaign.get("purpose", "invite"), camp_lang):
         # the organiser kept the suggested script, so each person gets it in their own language

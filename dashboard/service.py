@@ -143,6 +143,40 @@ class Engine:
                 t.start()
         return {"queued": pending}
 
+    def cancel(self, campaign_id: int) -> None:
+        """Stop for good: no further calls, no scheduled start, no automatic retries. Results so far are kept."""
+        self.db.update("campaigns", campaign_id, status="cancelled", scheduled_at=None)
+        self.db.x("UPDATE calls SET next_attempt_at=NULL WHERE campaign_id=?", (campaign_id,))
+
+    def run_due_schedules(self) -> int:
+        """Start campaigns whose scheduled start time has arrived. Returns how many were started."""
+        n = 0
+        for c in self.db.q("SELECT id FROM campaigns WHERE scheduled_at IS NOT NULL AND scheduled_at<=? "
+                           "AND status IN ('draft','paused')", (datetime.now(timezone.utc).isoformat(timespec="seconds"),)):
+            try:
+                self.launch(c["id"])
+                self.db.update("campaigns", c["id"], scheduled_at=None)
+                n += 1
+            except CampaignError as exc:
+                log.warning("scheduled campaign %s not started: %s", c["id"], exc)
+        return n
+
+    def retry_due(self, campaign_id: int, force: bool = False) -> int:
+        """Call again those who were not reached and have attempts left. `force` ignores the waiting time."""
+        c = self.db.one("SELECT * FROM campaigns WHERE id=?", (campaign_id,))
+        if force:
+            self.db.x("UPDATE calls SET next_attempt_at=? WHERE campaign_id=? AND status IN ('no_answer','busy','voicemail','failed') "
+                      "AND attempts<? AND COALESCE(error,'')=''",
+                      ((datetime.now(timezone.utc) - timedelta(seconds=1)).isoformat(timespec="seconds"), campaign_id, c["max_attempts"]))
+        return self.run_due_retries()
+
+    def record_opt_out(self, call_id: int) -> None:
+        """A person told us (or the organiser recorded) that they must not be called again."""
+        call = self.db.one("SELECT * FROM calls WHERE id=?", (call_id,))
+        self.db.update("participants", call["participant_id"], opted_out=1, rsvp="not_attending", rsvp_at=now())
+        self.db.x("UPDATE tasks SET status='cancelled', done_at=? WHERE participant_id=? AND status='open'", (now(), call["participant_id"]))
+        self.db.x("UPDATE calls SET next_attempt_at=NULL WHERE participant_id=? AND status!='completed'", (call["participant_id"],))
+
     def pause(self, campaign_id: int) -> None:
         self.db.update("campaigns", campaign_id, status="paused")
 
@@ -267,6 +301,11 @@ class Engine:
             info_topic=r.info_topic, last_event_id=r.event_id, updated_at=now())
         if r.attendance == "opted_out":
             self.db.update("participants", call["participant_id"], opted_out=1)
+        if r.intent:
+            self.db.insert("intents", call_attempt_id=att["id"], call_id=call["id"], campaign_id=call["campaign_id"],
+                           intent=r.intent, score={"dtmf": 1.0, "rules": 0.8}.get(r.method or "", 0.0), method=r.method or "none",
+                           detected_language=r.language or "", notes=json.dumps([n for n in (r.time_hint and f"prefers {r.time_hint}",) if n]),
+                           needs_review=int(r.needs_review), next_action=r.next_action or "", created_at=now())
         self._record_rsvp(call, r.attendance)
         self._followup(call["id"])
 
@@ -311,6 +350,7 @@ class Engine:
             while True:
                 time.sleep(self.settings.scheduler_interval_s)
                 try:
+                    self.run_due_schedules()
                     self.run_due_retries()
                 except Exception:
                     log.exception("retry scheduler failed")
