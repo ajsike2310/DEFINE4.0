@@ -113,7 +113,7 @@ def build_router(db: Db, engine: Engine, settings, require_auth) -> APIRouter:
         s = summarize(calls)
         sched = sorted(x["next_attempt_at"] for x in calls if x.get("next_attempt_at"))
         s["retries_scheduled"] = len(sched)
-        out = {**c, "summary": s, "state": engine.campaign_state(c, s), "next_retry_at": sched[0] if sched else None,
+        out = {**c, "summary": s, "state": engine.state_of(c, calls), "next_retry_at": sched[0] if sched else None,
                "auto_retry": bool(c["auto_retry"])}
         if with_calls:
             out["calls"] = calls

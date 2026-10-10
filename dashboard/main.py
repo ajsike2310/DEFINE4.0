@@ -1,9 +1,11 @@
 """Dashboard app: `python -m scripts.run_dashboard`. Serves the UI, the API, and (for real calls) the live-call WebSocket."""
 import hmac
+import json
 import logging
 import os
 import threading
 import time
+import urllib.parse
 from pathlib import Path
 
 from fastapi import FastAPI, Header, HTTPException, Request
@@ -16,9 +18,11 @@ from .api import build_router
 from .config import Settings
 from .db import Db
 from .service import Engine
+from .v2 import build_v2
 
 log = logging.getLogger("dashboard")
 STATIC = Path(__file__).parent / "static"
+FRONTEND_DIST = Path(__file__).resolve().parent.parent / "frontend" / "dist"
 
 
 def create_app(settings: Settings | None = None, provider=None, start_reconciler: bool = True) -> FastAPI:
@@ -70,6 +74,7 @@ def create_app(settings: Settings | None = None, provider=None, start_reconciler
             raise HTTPException(401, "Access token required")
 
     app.include_router(build_router(db, engine, settings, require_auth))
+    app.mount("/api/v2", build_v2(db, engine, settings, require_auth))       # the API the React app (frontend/) talks to
     if start_reconciler:
         engine.start_scheduler()
 
@@ -77,8 +82,12 @@ def create_app(settings: Settings | None = None, provider=None, start_reconciler
     async def exotel_status(request: Request, token: str = ""):
         if not settings.exotel_webhook_token or not hmac.compare_digest(token.encode(), settings.exotel_webhook_token.encode()):
             raise HTTPException(401, "bad token")
+        raw = await request.body()
         try:
-            data = dict(await request.form()) if "json" not in request.headers.get("content-type", "") else await request.json()
+            if "json" in request.headers.get("content-type", ""):
+                data = json.loads(raw or b"{}")
+            else:                                       # application/x-www-form-urlencoded, as Exotel sends it
+                data = {k: v[0] for k, v in urllib.parse.parse_qs(raw.decode("utf-8", "replace")).items()}
         except Exception:
             data = {}
         sid, status = str(data.get("CallSid") or ""), str(data.get("Status") or "").lower()
@@ -105,5 +114,18 @@ def create_app(settings: Settings | None = None, provider=None, start_reconciler
         return FileResponse(STATIC / "index.html", headers={"Cache-Control": "no-cache"})
 
     app.mount("/static", StaticFiles(directory=STATIC), name="static")
+
+    # The React app (frontend/), after `npm run build`. Unknown paths fall back to index.html so client-side routes work.
+    @app.get("/app")
+    @app.get("/app/{path:path}")
+    def react_app(path: str = ""):
+        root = FRONTEND_DIST.resolve()
+        target = (root / path).resolve()
+        if path and root in target.parents and target.is_file():
+            return FileResponse(target)
+        index = root / "index.html"
+        if not index.is_file():
+            raise HTTPException(404, "The React app is not built yet. Run: cd frontend && npm install && npm run build")
+        return FileResponse(index, headers={"Cache-Control": "no-cache"})
     app.state.engine, app.state.db = engine, db
     return app

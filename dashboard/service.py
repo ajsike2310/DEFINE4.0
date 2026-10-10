@@ -7,6 +7,7 @@ import time
 from datetime import datetime, timedelta, timezone
 
 from member3.integrations.base import ProviderError
+from member3.integrations.demo_provider.provider import DemoProvider
 from member3.intelligence.pipeline import ResponseInput, process_response
 from member3.live.campaign import CallContext, CampaignInfo
 from member3.live.results import CallResult, build_result
@@ -68,6 +69,7 @@ class Engine:
     def __init__(self, db: Db, provider, settings: Settings, live=None):
         self.db, self.provider, self.settings, self.live = db, provider, settings, live
         self._threads: dict[int, threading.Thread] = {}
+        self.demo_provider = DemoProvider()
         self._lock = threading.Lock()
 
     # ---------------------------------------------------------------- audience / launching
@@ -112,9 +114,13 @@ class Engine:
     def local_now(self) -> datetime:
         return datetime.now(timezone.utc) + timedelta(minutes=self.settings.call_timezone_offset_min)
 
-    def _check_window(self) -> None:
+    def provider_for(self, campaign: dict):
+        """Sample-data campaigns always use the simulated provider; everything else uses the configured one."""
+        return self.demo_provider if campaign.get("is_demo") else self.provider
+
+    def _check_window(self, provider=None) -> None:
         h = self.get_hours()
-        if not h["enabled"] or self.provider.is_simulated:
+        if not h["enabled"] or (provider or self.provider).is_simulated:
             return
         start, end = (datetime.strptime(x, "%H:%M").time() for x in (h["start"], h["end"]))
         if not (start <= self.local_now().time() <= end):
@@ -130,7 +136,7 @@ class Engine:
             raise CampaignError("Campaign not found")
         if not (c["template"] or "").strip():
             raise CampaignError("Write the call message first")
-        self._check_window()
+        self._check_window(self.provider_for(c))
         pending = self.db.one("SELECT COUNT(*) n FROM calls c JOIN participants p ON p.id=c.participant_id "
                               "WHERE c.campaign_id=? AND c.status='pending' AND p.opted_out=0 AND p.can_call=1", (campaign_id,))["n"]
         if pending == 0:
@@ -243,19 +249,20 @@ class Engine:
         number = call["attempts"] + 1
         attempt_id = self.db.insert("attempts", call_id=call_id, number=number, started_at=now())
         self.db.update("calls", call_id, status="dialing", attempts=number, message=message, error="", updated_at=now())
-        self.provider.last_error_detail = ""
+        provider = self.provider_for(camp)
+        provider.last_error_detail = ""
         try:
-            res = self.provider.initiate_call(attempt_id=attempt_id, attempt_number=number, to=person["phone"],
+            res = provider.initiate_call(attempt_id=attempt_id, attempt_number=number, to=person["phone"],
                                               language=lang, message=message)
         except ProviderError as exc:
             self._finish_attempt(attempt_id, "failed")
-            detail = getattr(self.provider, "last_error_detail", "")
+            detail = getattr(provider, "last_error_detail", "")
             self.db.update("calls", call_id, status="failed", error=(f"{exc}: {detail}" if detail else str(exc))[:400], updated_at=now())
             self._followup(call_id)
             return
         self.db.update("attempts", attempt_id, provider_call_id=res.provider_call_id)
         self.db.update("calls", call_id, provider_call_id=res.provider_call_id, status="in_progress", updated_at=now())
-        if self.provider.is_simulated:
+        if provider.is_simulated:
             self._apply_simulated(call_id, attempt_id, camp, person, res)
         elif self.live is not None:
             from member3.live.campaign import CallContext as Ctx
@@ -330,14 +337,19 @@ class Engine:
             "AND p.opted_out=0 AND p.can_call=1", (datetime.now(timezone.utc).isoformat(timespec="seconds"),))
         if not due:
             return 0
-        try:
-            self._check_window()                    # outside calling hours: leave them scheduled, try again on the next scan
-        except CampaignError:
-            return 0
-        campaigns = set()
+        campaigns, blocked = set(), set()
         for d in due:
+            cid = d["campaign_id"]
+            if cid not in campaigns and cid not in blocked:
+                try:                                # outside calling hours: leave them scheduled, try again on the next scan
+                    self._check_window(self.provider_for(self.db.one("SELECT * FROM campaigns WHERE id=?", (cid,))))
+                except CampaignError:
+                    blocked.add(cid)
+            if cid in blocked:
+                continue
             self.db.update("calls", d["id"], status="pending", error="", next_attempt_at=None, updated_at=now())
-            campaigns.add(d["campaign_id"])
+            campaigns.add(cid)
+        due = [d for d in due if d["campaign_id"] not in blocked]
         for cid in campaigns:
             try:
                 self.launch(cid)
@@ -441,6 +453,13 @@ class Engine:
         return n
 
     # ---------------------------------------------------------------- reporting
+    def state_of(self, campaign: dict, calls: list[dict]) -> str:
+        """Campaign state ignoring people who can never be called (opted out / no consent), who must not keep it open."""
+        live = [x for x in calls if not (x["status"] == "pending" and (x.get("opted_out") or not x.get("can_call", 1)))]
+        s = summarize(live)
+        s["retries_scheduled"] = sum(1 for x in live if x.get("next_attempt_at"))
+        return self.campaign_state(campaign, s)
+
     def campaign_state(self, campaign: dict, summary: dict) -> str:
         if campaign["status"] == "paused":
             return "paused"
