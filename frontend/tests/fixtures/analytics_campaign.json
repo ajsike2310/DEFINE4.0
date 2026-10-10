@@ -1,0 +1,97 @@
+{
+ "source": "all",
+ "totals": {
+  "campaigns": 1,
+  "recipients": 11,
+  "calls_attempted": 18,
+  "calls_finished": 18,
+  "calls_answered": 11,
+  "recipients_contacted": 11,
+  "recipients_responded": 9,
+  "retries": 7,
+  "failed_or_unanswered": 7,
+  "simulated_calls": 18,
+  "real_calls": 0
+ },
+ "outcomes": {
+  "confirmed": 4,
+  "acknowledged": 0,
+  "declined": 1,
+  "callback_requested": 1,
+  "information_requested": 1,
+  "unclear": 1,
+  "human_required": 0,
+  "opted_out": 1,
+  "no_response": 2,
+  "pending": 0
+ },
+ "followups": {
+  "pending": 3,
+  "completed": 1,
+  "cancelled": 0
+ },
+ "rates": {
+  "completion_rate": 1.0,
+  "answer_rate": 0.6111,
+  "failure_rate": 0.3889,
+  "confirmation_rate": 0.4444,
+  "decline_rate": 0.1111,
+  "unclear_rate": 0.1111
+ },
+ "by_language": [
+  {
+   "language": "en",
+   "recipients": 8,
+   "attempts": 13,
+   "answered": 9,
+   "confirmed": 3,
+   "acknowledged": 0,
+   "declined": 1,
+   "callback_requested": 1,
+   "information_requested": 1,
+   "unclear": 1,
+   "human_required": 0,
+   "opted_out": 0,
+   "no_response": 1,
+   "pending": 0
+  },
+  {
+   "language": "ml",
+   "recipients": 3,
+   "attempts": 5,
+   "answered": 2,
+   "confirmed": 1,
+   "acknowledged": 0,
+   "declined": 0,
+   "callback_requested": 0,
+   "information_requested": 0,
+   "unclear": 0,
+   "human_required": 0,
+   "opted_out": 1,
+   "no_response": 1,
+   "pending": 0
+  }
+ ],
+ "headcount": {
+  "participants": 11,
+  "confirmed": 4,
+  "declined": 1,
+  "unknown": 6,
+  "unknown_breakdown": {
+   "callback_requested": 1,
+   "opted_out": 1,
+   "no_response": 2,
+   "information_requested": 1,
+   "unclear": 1
+  },
+  "floor": 4,
+  "ceiling": 10,
+  "certainty": 0.4545
+ },
+ "clarification": {
+  "attempted": 2,
+  "resolved": 1
+ },
+ "needs_review": 3,
+ "needs_attention": 5
+}

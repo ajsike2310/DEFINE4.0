@@ -1,0 +1,13 @@
+name,phone,participant_id,language,segment,opted_out
+Anjali Menon,+919000000001,DEMO-001,en,student,
+Arjun Krishnan,+919000000002,DEMO-002,ml,student,
+Meera Nair,+919000000003,DEMO-003,ml,student,
+Rahul Varma,+919000000004,DEMO-004,en,student,
+Fathima Basheer,+919000000005,DEMO-005,ml,student,
+Joseph Mathew,+919000000006,DEMO-006,en,mentor,
+Divya Pillai,+919000000007,DEMO-007,en,volunteer,
+Sreejith Kumar,+919000000008,DEMO-008,ml,student,
+Neha Thomas,+919000000009,DEMO-009,en,student,
+Vishnu Prasad,+919000000010,DEMO-010,ml,speaker,
+Aswathy Raj,+919000000011,DEMO-011,en,student,
+Nikhil George,+919000000012,DEMO-012,en,student,yes

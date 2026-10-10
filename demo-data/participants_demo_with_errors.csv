@@ -1,0 +1,8 @@
+name,phone,participant_id,language,segment,opted_out
+Anjali Menon,+919000000101,DEMO-101,en,student,
+Arjun Krishnan,+919000000102,DEMO-102,ml,student,
+Meera Nair,98765,DEMO-103,ml,student,
+Rahul Varma,+919000000104,DEMO-104,fr,student,
+Fathima Basheer,+919000000102,DEMO-105,ml,student,
+,+919000000106,DEMO-106,en,mentor,
+Divya Pillai,+919000000107,DEMO-107,en,volunteer,

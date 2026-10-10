@@ -1,0 +1,143 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-10T00:00:00Z",
+  "title": "Design System: Cadence",
+  "extensions": {
+    "colorMeta": {
+      "ink": { "role": "primary", "displayName": "Ink Black", "canonical": "#111113", "tonalRamp": ["#000000", "#111113", "#3d3d42", "#77777e", "#b9b9c0", "#e5e5e7", "#efeff1", "#f6f6f5"] },
+      "canvas": { "role": "neutral", "displayName": "Canvas", "canonical": "#f6f6f5", "tonalRamp": ["#111113", "#3d3d42", "#77777e", "#b9b9c0", "#e5e5e7", "#efeff1", "#f6f6f5", "#ffffff"] },
+      "highlight-yellow": { "role": "secondary", "displayName": "Highlight Yellow", "canonical": "#ffe53b", "tonalRamp": ["#5c5200", "#8f7f00", "#c2ac00", "#ffe53b", "#ffeb62", "#fff08a", "#fff7c2", "#fffbe0"] },
+      "signal-pink": { "role": "secondary", "displayName": "Signal Pink", "canonical": "#e03a6b", "tonalRamp": ["#5a0f26", "#8a1a3f", "#b82a55", "#e03a6b", "#e8688b", "#f092ac", "#fde4ec", "#fef2f6"] },
+      "progress-purple": { "role": "tertiary", "displayName": "Progress Purple", "canonical": "#6a4fe0", "tonalRamp": ["#1e1650", "#33268f", "#4b39bd", "#6a4fe0", "#8e79e8", "#b2a3f0", "#d8d0f8", "#efecfc"] },
+      "good-green": { "role": "status", "displayName": "Good Green", "canonical": "#1f9d55", "tonalRamp": ["#0a3a1f", "#10602f", "#17803f", "#1f9d55", "#4fb87c", "#82cfa3", "#bce8cf", "#e4f6ec"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "The attending range figure on the dashboard." },
+      "headline": { "displayName": "Headline", "purpose": "Page titles, stat values, ring centre number." },
+      "title": { "displayName": "Title", "purpose": "Card and section headers." },
+      "body": { "displayName": "Body", "purpose": "Default Hanken Grotesk text with Malayalam companion." },
+      "label": { "displayName": "Label", "purpose": "Buttons, tabs, field labels, table heads, chips." }
+    },
+    "shadows": [
+      { "name": "floating-panel", "value": "0 12px 32px -12px rgba(17,17,19,.25)", "purpose": "Command-search dropdown and menus." },
+      { "name": "focus-halo", "value": "0 0 0 3px color-mix(in srgb, #ffe53b 55%, transparent)", "purpose": "Focused input, with an ink border." }
+    ],
+    "motion": [
+      { "name": "ease-out-soft", "value": "cubic-bezier(0.2, 0.7, 0.2, 1)", "purpose": "Reveals, toasts, dialogs, ring growth." },
+      { "name": "ring-grow", "value": "1.1s ease-out-soft, 110ms stagger per ring", "purpose": "Pookalam arcs draw in." },
+      { "name": "press", "value": "translateY(1px) scale(.985), 120ms", "purpose": "Button and tab press feedback." }
+    ],
+    "breakpoints": [
+      { "name": "md", "value": "768px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Black primary action, one per view.",
+      "html": "<button class=\"ds-btn-primary\">New campaign</button>",
+      "css": ".ds-btn-primary { background: #111113; color: #fff; padding: 8px 14px; border: 0; border-radius: 6px; font: 500 13px 'Hanken Grotesk', sans-serif; transition: transform .12s ease, background-color .18s ease; } .ds-btn-primary:hover { background: #3d3d42; } .ds-btn-primary:active { transform: translateY(1px) scale(.985); } .ds-btn-primary:focus-visible { outline: 2px solid #111113; outline-offset: 2px; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "White button with a near-ink outline.",
+      "html": "<button class=\"ds-btn-secondary\">Open follow-up queue</button>",
+      "css": ".ds-btn-secondary { background: #fff; color: #111113; padding: 8px 14px; border: 1px solid rgba(17,17,19,.8); border-radius: 6px; font: 500 13px 'Hanken Grotesk', sans-serif; transition: background-color .18s ease; } .ds-btn-secondary:hover { background: #f6f6f5; } .ds-btn-secondary:focus-visible { outline: 2px solid #111113; outline-offset: 2px; }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Hairline field, ink border and yellow halo on focus.",
+      "html": "<input class=\"ds-input\" placeholder=\"Search participants\" />",
+      "css": ".ds-input { width: 220px; background: #fff; color: #111113; border: 1px solid #e5e5e7; border-radius: 6px; padding: 8px 12px; font: 400 13.5px 'Hanken Grotesk', sans-serif; transition: border-color .15s, box-shadow .15s; } .ds-input::placeholder { color: #77777e; } .ds-input:hover { border-color: rgba(17,17,19,.4); } .ds-input:focus { outline: none; border-color: #111113; box-shadow: 0 0 0 3px rgba(255,229,59,.55); }"
+    },
+    {
+      "name": "Status Chip",
+      "kind": "chip",
+      "refersTo": "badge",
+      "description": "Small tinted chip with dot and label.",
+      "html": "<span class=\"ds-chip\"><i></i>Real</span>",
+      "css": ".ds-chip { display: inline-flex; align-items: center; gap: 6px; padding: 2px 6px; border-radius: 5px; background: rgba(31,157,85,.1); color: #1f9d55; font: 500 11.5px/16px 'Hanken Grotesk', sans-serif; white-space: nowrap; } .ds-chip i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "White 8px card with hairline border and ruled header.",
+      "html": "<section class=\"ds-card\"><header><h2>Campaigns</h2></header><p>Body content</p></section>",
+      "css": ".ds-card { background: #fff; border: 1px solid #e5e5e7; border-radius: 8px; color: #111113; font: 400 14px 'Hanken Grotesk', sans-serif; } .ds-card header { padding: 12px 20px; border-bottom: 1px solid #efeff1; } .ds-card h2 { margin: 0; font: 600 14px 'Hanken Grotesk', sans-serif; } .ds-card p { margin: 0; padding: 20px; }"
+    },
+    {
+      "name": "Stat Strip",
+      "kind": "card",
+      "refersTo": "stat-cell",
+      "description": "Hairline-divided metrics; the pink cell needs a person.",
+      "html": "<div class=\"ds-strip\"><div><span>Declined</span><b>4</b></div><div class=\"a\"><span>Needs human</span><b>7<i></i></b></div></div>",
+      "css": ".ds-strip { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; width: 360px; overflow: hidden; border: 1px solid #e5e5e7; border-radius: 8px; background: #e5e5e7; } .ds-strip div { background: #fff; padding: 16px; } .ds-strip span { display: block; font: 400 12px 'Hanken Grotesk', sans-serif; color: #77777e; } .ds-strip b { margin-top: 6px; display: flex; align-items: center; gap: 8px; font: 600 28px/1 'Hanken Grotesk', sans-serif; letter-spacing: -0.01em; color: #111113; font-variant-numeric: tabular-nums; } .ds-strip .a b { color: #e03a6b; } .ds-strip i { width: 8px; height: 8px; border-radius: 50%; background: #e03a6b; }"
+    },
+    {
+      "name": "Underline Tabs",
+      "kind": "nav",
+      "refersTo": "nav-item-active",
+      "description": "Segmented control as underline tabs.",
+      "html": "<div class=\"ds-tabs\"><button class=\"on\">All calls</button><button>Real only</button><button>Simulated only</button></div>",
+      "css": ".ds-tabs { display: inline-flex; gap: 20px; border-bottom: 1px solid #e5e5e7; } .ds-tabs button { background: none; border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px; padding: 4px 0 8px; font: 500 13px 'Hanken Grotesk', sans-serif; color: #77777e; } .ds-tabs button:hover { color: #111113; } .ds-tabs button.on { color: #111113; border-bottom-color: #111113; }"
+    },
+    {
+      "name": "Sidebar Nav",
+      "kind": "nav",
+      "refersTo": "sidebar",
+      "description": "Light sidebar with a collapsible group and a yellow count badge.",
+      "html": "<nav class=\"ds-nav\"><a class=\"on\">Dashboard</a><a>Follow-up queue <b>3</b></a><a>People</a><div class=\"sub\"><a>Leads</a><a>Participants</a></div></nav>",
+      "css": ".ds-nav { background: #fff; border-right: 1px solid #e5e5e7; padding: 12px; width: 240px; display: grid; gap: 2px; } .ds-nav a { display: flex; justify-content: space-between; padding: 8px 12px; border-radius: 6px; color: #3d3d42; font: 400 13.5px 'Hanken Grotesk', sans-serif; } .ds-nav a:hover { background: #f6f6f5; color: #111113; } .ds-nav a.on { background: #f6f6f5; color: #111113; font-weight: 600; } .ds-nav b { background: #ffe53b; color: #111113; border-radius: 5px; padding: 0 6px; font: 600 11px/20px 'Hanken Grotesk', sans-serif; } .ds-nav .sub { margin-left: 22px; padding-left: 8px; border-left: 1px solid #e5e5e7; } .ds-nav .sub a { padding: 6px 12px; font-size: 13px; color: #77777e; }"
+    },
+    {
+      "name": "Pookalam Chart",
+      "kind": "custom",
+      "refersTo": "card",
+      "description": "Concentric outcome rings on white with grey tracks and a centre number.",
+      "html": "<svg viewBox=\"0 0 280 280\" width=\"200\" height=\"200\"><circle cx=\"140\" cy=\"140\" r=\"118\" fill=\"none\" stroke=\"#efeff1\" stroke-width=\"9\"/><circle cx=\"140\" cy=\"140\" r=\"118\" fill=\"none\" stroke=\"#1f9d55\" stroke-width=\"9\" stroke-linecap=\"round\" stroke-dasharray=\"380 742\" transform=\"rotate(-90 140 140)\"/><circle cx=\"140\" cy=\"140\" r=\"103\" fill=\"none\" stroke=\"#efeff1\" stroke-width=\"9\"/><circle cx=\"140\" cy=\"140\" r=\"103\" fill=\"none\" stroke=\"#e03a6b\" stroke-width=\"9\" stroke-linecap=\"round\" stroke-dasharray=\"120 647\" transform=\"rotate(-90 140 140)\"/><text x=\"140\" y=\"144\" text-anchor=\"middle\" font-size=\"40\" font-weight=\"600\" fill=\"#111113\" font-family=\"Hanken Grotesk, sans-serif\">52</text><text x=\"140\" y=\"164\" text-anchor=\"middle\" font-size=\"10.5\" font-weight=\"500\" fill=\"#77777e\" font-family=\"Hanken Grotesk, sans-serif\">attending</text></svg>",
+      "css": ".ds-pk { background: #fff; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Plain Ledger",
+    "overview": "Cadence is a clean neutral product UI: white work surfaces on a pale grey ground, near-black ink, black primary buttons, hairline borders. Nothing is decorated. Colour is rationed so an organizer scanning between other tasks reads state before words: yellow marks the single thing to look at, pink means a person is needed, purple means in progress or open, green means settled.",
+    "keyCharacteristics": [
+      "Pale grey canvas, white surfaces, 1px hairline borders, no resting shadows.",
+      "Black primary button, outlined secondary; underline tabs; tinted small status chips.",
+      "Yellow = the one highlight; pink = needs a person; purple = in progress/open; green = settled.",
+      "Light sidebar with collapsible sub-navigation, top bar with command search, event select and bell, then a breadcrumb row.",
+      "Hanken Grotesk and Noto Sans Malayalam only."
+    ],
+    "rules": [
+      { "name": "The One Highlight Rule", "body": "Yellow marks the single thing to look at on a screen (count, range floor, empty icon). It is never a fill for large areas or a second action colour.", "section": "colors" },
+      { "name": "The Pink Means A Person Rule", "body": "Pink marks what needs a human and nothing else.", "section": "colors" },
+      { "name": "The Meaning-Not-Mood Rule", "body": "Tones come from labels.ts; ring colours come from GROUPS in OutcomeChart.tsx. Do not pick a tone ad hoc.", "section": "colors" },
+      { "name": "The Hatch Rule", "body": "An uncertain share of a bar is a diagonal grey hatch, meaning \"not yet known\".", "section": "colors" },
+      { "name": "The Tabular Numbers Rule", "body": "Counts and rates are tabular so strips and tables align.", "section": "typography" },
+      { "name": "The Two-Script Rule", "body": "Never clip or truncate Malayalam; give it line-height room.", "section": "typography" },
+      { "name": "The Hairline-First Rule", "body": "Separate regions with canvas/surface steps and 1px lines before reaching for a shadow.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do keep pages white-on-grey with 1px lines; radii at 5 / 6 / 8px.",
+      "Do make the black primary button the single main action per view.",
+      "Do use Pink only for items needing a human and Yellow for one highlight per area.",
+      "Do show status as a tinted chip with dot and label, tone from labels.ts.",
+      "Do give any outcome chart a table or legend with the same data.",
+      "Do honor prefers-reduced-motion; mask phone numbers and mark simulated activity visibly."
+    ],
+    "donts": [
+      "Don't add another saturated colour without a meaning to attach to it.",
+      "Don't use yellow or pink as decoration or as large fills.",
+      "Don't truncate or clip Malayalam text.",
+      "Don't hard-code status colours outside the semantic set.",
+      "Don't add resting card shadows or a second typeface."
+    ]
+  }
+}

@@ -1,0 +1,104 @@
+{
+ "recipient": {
+  "id": 11,
+  "campaign_id": 1,
+  "external_ref": "SAMPLE-010",
+  "name": "Sample Participant 10",
+  "phone": "+15550100114",
+  "preferred_language": "en",
+  "segment": "sample",
+  "consent_status": "granted",
+  "opted_out": false,
+  "outcome": "unclear",
+  "is_demo": true,
+  "created_at": "2026-10-09T10:55:35.635149Z"
+ },
+ "attempts": [
+  {
+   "id": 11,
+   "campaign_id": 1,
+   "recipient_id": 11,
+   "provider": "demo",
+   "is_simulated": true,
+   "provider_call_id": "demo-11",
+   "attempt_number": 1,
+   "mode": "main",
+   "call_language": "en",
+   "status": "completed",
+   "started_at": "2026-10-09T10:55:36.061148Z",
+   "answered_at": "2026-10-09T10:55:36.071709Z",
+   "completed_at": "2026-10-09T10:55:36.094395Z",
+   "failure_reason": null,
+   "next_retry_at": null
+  },
+  {
+   "id": 41,
+   "campaign_id": 1,
+   "recipient_id": 11,
+   "provider": "demo",
+   "is_simulated": true,
+   "provider_call_id": "demo-41",
+   "attempt_number": 2,
+   "mode": "clarify",
+   "call_language": "en",
+   "status": "completed",
+   "started_at": "2026-10-09T10:55:37.355227Z",
+   "answered_at": "2026-10-09T10:55:37.362639Z",
+   "completed_at": "2026-10-09T10:55:37.386695Z",
+   "failure_reason": null,
+   "next_retry_at": null
+  }
+ ],
+ "intents": [
+  {
+   "id": 8,
+   "call_attempt_id": 11,
+   "recipient_id": 11,
+   "campaign_id": 1,
+   "intent": "unclear",
+   "score": 0.2,
+   "method": "rules",
+   "detected_language": "en",
+   "evidence": "maybe ill see",
+   "notes": [
+    "hedging language"
+   ],
+   "needs_review": true,
+   "next_action": "ask_clarification",
+   "processing_status": "processed",
+   "created_at": "2026-10-09T10:55:36.082538Z"
+  },
+  {
+   "id": 27,
+   "call_attempt_id": 41,
+   "recipient_id": 11,
+   "campaign_id": 1,
+   "intent": "unclear",
+   "score": 0.2,
+   "method": "rules",
+   "detected_language": "en",
+   "evidence": "sure",
+   "notes": [
+    "hedging language",
+    "still unclear after clarification question"
+   ],
+   "needs_review": true,
+   "next_action": "human_review",
+   "processing_status": "processed",
+   "created_at": "2026-10-09T10:55:37.373960Z"
+  }
+ ],
+ "followups": [
+  {
+   "id": 4,
+   "campaign_id": 1,
+   "recipient_id": 11,
+   "action_type": "human_review",
+   "status": "pending",
+   "scheduled_at": null,
+   "note": "clarification attempted; still unclear - needs a person. hedging language; still unclear after clarification question",
+   "created_at": "2026-10-09T10:55:36.086960Z",
+   "completed_at": null
+  }
+ ]
+}

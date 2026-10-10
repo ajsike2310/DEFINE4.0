@@ -1,0 +1,35 @@
+{
+ "provider": "demo",
+ "purposes": [
+  "attendance_confirmation",
+  "event_announcement",
+  "participant_followup",
+  "schedule_venue_update",
+  "submission_deadline_reminder"
+ ],
+ "exotel_configured": false,
+ "languages": [
+  {
+   "code": "en",
+   "name": "English",
+   "support": "rule-based phrase matching; small synthetic test set; experimental"
+  },
+  {
+   "code": "ml",
+   "name": "Malayalam",
+   "support": "rule-based phrase matching; small synthetic test set; experimental"
+  }
+ ],
+ "retry_policy": {
+  "max_attempts_default": 3,
+  "backoff_minutes": 30,
+  "retry_on": [
+   "failed",
+   "busy",
+   "no_answer",
+   "voicemail"
+  ]
+ },
+ "data_location": "Local SQLite file on the machine running the backend.",
+ "transcription": "none configured; speech audio without text is routed to human review"
+}

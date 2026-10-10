@@ -1,0 +1,29 @@
+{
+ "by_status": {
+  "completed": 1
+ },
+ "campaigns": [
+  {
+   "campaign_id": 1,
+   "event_id": 1,
+   "name": "[SAMPLE] Attendance confirmation #1",
+   "purpose": "attendance_confirmation",
+   "status": "completed",
+   "is_demo": true,
+   "participants": 11,
+   "contacted": 11,
+   "resolved": 11,
+   "needs_attention": 5,
+   "retry_eligible": 0,
+   "missing_consent": 0,
+   "progress": 1.0,
+   "next_step": "5 need follow-up",
+   "created_at": "2026-10-09T10:55:35.627896+00:00"
+  }
+ ],
+ "totals": {
+  "participants": 11,
+  "needs_attention": 5,
+  "retry_eligible": 0
+ }
+}
